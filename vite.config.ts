@@ -1,0 +1,36 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig(({ mode }) => {
+  const isProd = mode === 'production';
+
+  return {
+    plugins: [react()],
+    server: {
+      port: 5175,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4005',
+          changeOrigin: true,
+        },
+        '/health': {
+          target: 'http://localhost:4005',
+          changeOrigin: true,
+        },
+      },
+    },
+    build: {
+      target: 'es2022',
+      sourcemap: !isProd,
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            lucide: ['lucide-react'],
+          },
+        },
+      },
+    },
+  };
+});

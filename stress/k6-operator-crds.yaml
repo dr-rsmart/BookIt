@@ -1,0 +1,155 @@
+# ─────────────────────────────────────────────────────────────
+# Kubernetes & k6-operator Distributed Stress Architecture
+# ─────────────────────────────────────────────────────────────
+# 1. K6 Custom Resource for Phase A (1 worker, 1,000 VUs)
+# 2. K6 Custom Resource for Phase B (1 worker, 3,000 VUs)
+# 3. K6 Custom Resource for Phase C (2 workers, 2,500 VUs/each = 5,000 VUs)
+# 4. HorizontalPodAutoscaler (HPA) for BookingTrack API deployment
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: k6.io/v1alpha1
+kind: K6
+metadata:
+  name: bookingtrack-stress-phase-a
+  namespace: load-testing
+spec:
+  parallelism: 1
+  script:
+    configMap:
+      name: k6-orchestrator-script
+      file: suite-orchestrator.js
+  arguments: "-e TARGET_URL=http://bookingtrack-api.production.svc.cluster.local:4005 -e TEST_PHASE=PHASE_A_BASELINE"
+  runner:
+    image: grafana/k6:0.55.0
+    resources:
+      requests:
+        cpu: "1000m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    env:
+      - name: PERF_TEST_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: bookingtrack-perf-secret
+            key: secret
+---
+apiVersion: k6.io/v1alpha1
+kind: K6
+metadata:
+  name: bookingtrack-stress-phase-b
+  namespace: load-testing
+spec:
+  parallelism: 1
+  script:
+    configMap:
+      name: k6-orchestrator-script
+      file: suite-orchestrator.js
+  arguments: "-e TARGET_URL=http://bookingtrack-api.production.svc.cluster.local:4005 -e TEST_PHASE=PHASE_B_STRESS"
+  runner:
+    image: grafana/k6:0.55.0
+    resources:
+      requests:
+        cpu: "2000m"
+        memory: "2Gi"
+      limits:
+        cpu: "4000m"
+        memory: "4Gi"
+    env:
+      - name: PERF_TEST_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: bookingtrack-perf-secret
+            key: secret
+---
+apiVersion: k6.io/v1alpha1
+kind: K6
+metadata:
+  name: bookingtrack-stress-phase-c
+  namespace: load-testing
+spec:
+  parallelism: 2 # Distributed execution: 2 worker pods splitting 5,000 VUs (2,500 VUs each)
+  script:
+    configMap:
+      name: k6-orchestrator-script
+      file: suite-orchestrator.js
+  arguments: "-e TARGET_URL=http://bookingtrack-api.production.svc.cluster.local:4005 -e TEST_PHASE=PHASE_C_EXTREME"
+  separate: true # Ensures pods are scheduled onto distinct physical Kubernetes worker nodes
+  runner:
+    image: grafana/k6:0.55.0
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["k6-runner"]
+            topologyKey: "kubernetes.io/hostname"
+    resources:
+      requests:
+        cpu: "2000m"
+        memory: "2Gi"
+      limits:
+        cpu: "4000m"
+        memory: "4Gi"
+    env:
+      - name: PERF_TEST_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: bookingtrack-perf-secret
+            key: secret
+---
+# ─────────────────────────────────────────────────────────────
+# Horizontal Pod Autoscaler (HPA) for Target API Pods
+# ─────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: bookingtrack-api-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bookingtrack-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # Trigger scaling before hitting 95% abort tripwire
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75 # Trigger scaling before hitting 90% abort tripwire
+    - type: Pods
+      pods:
+        metric:
+          name: bookingtrack_http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "400"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0 # Immediate scale up during flash stress
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15 # Double replicas every 15s if needed
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300 # 5-minute cool down to prevent thrashing
+      policies:
+        - type: Percent
+          value: 20
+          periodSeconds: 60

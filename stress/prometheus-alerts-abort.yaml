@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────
+# Prometheus Alerting Rules: Performance Stress Kill-Switches
+# ─────────────────────────────────────────────────────────────
+# Triggers an immediate abort webhook when any critical tripwire
+# is breached during stress test execution.
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: bookingtrack-stress-abort-rules
+  namespace: monitoring
+  labels:
+    role: alert-rules
+spec:
+  groups:
+    - name: bookingtrack_stress_kill_switches
+      rules:
+        # 1. RAM / Swap Usage Tripwire (> 90%)
+        - alert: StressTripwireMemoryExhaustion
+          expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+            or (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) > 0
+          for: 5s
+          labels:
+            severity: critical
+            action: abort_stress_test
+          annotations:
+            summary: "Host Memory > 90% or Swap in active use"
+            description: "Target host or pod node memory reached {{ $value }}%. Immediate test abort required to prevent OOM panic."
+
+        # 2. Disk I/O Queue Length Tripwire (> 2 or 100% active time)
+        - alert: StressTripwireDiskIOQueueSaturated
+          expr: rate(node_disk_io_time_weighted_seconds_total[15s]) > 2
+            or rate(node_disk_io_time_seconds_total[15s]) >= 1
+          for: 5s
+          labels:
+            severity: critical
+            action: abort_stress_test
+          annotations:
+            summary: "Disk I/O Queue Length > 2 or 100% Active Time"
+            description: "Storage subsystem saturated with queue depth {{ $value }}. Immediate test abort required to protect database disk."
+
+        # 3. CPU Utilization Tripwire (> 95% with high iowait)
+        - alert: StressTripwireCPUSaturation
+          expr: (100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[15s])) * 100)) > 95
+            and (avg by (instance) (rate(node_cpu_seconds_total{mode="iowait"}[15s])) * 100) > 15
+          for: 10s
+          labels:
+            severity: critical
+            action: abort_stress_test
+          annotations:
+            summary: "CPU Utilization > 95% with High %iowait"
+            description: "CPU saturated at {{ $value }}% with heavy disk wait state. Immediate test abort required."
+
+        # 4. Error Rate Tripwire (> 5%)
+        - alert: StressTripwireHighErrorRate
+          expr: (sum(rate(bookingtrack_http_responses_5xx_total[15s])) / sum(rate(bookingtrack_http_requests_total[15s]))) * 100 > 5
+          for: 5s
+          labels:
+            severity: critical
+            action: abort_stress_test
+          annotations:
+            summary: "Application Error Rate > 5%"
+            description: "5xx error rate spiked to {{ $value }}%. Saturated connection pool or service crash. Immediate abort triggered."
+
+        # 5. Latency Degradation Tripwire (p99 > 3,000ms)
+        - alert: StressTripwireLatencyDegradation
+          expr: histogram_quantile(0.99, sum(rate(http_req_duration_bucket[15s])) by (le)) > 3000
+          for: 10s
+          labels:
+            severity: critical
+            action: abort_stress_test
+          annotations:
+            summary: "Latency p99 > 3000ms"
+            description: "99th percentile response time degraded to {{ $value }}ms. Cascading failure imminent. Immediate abort triggered."
