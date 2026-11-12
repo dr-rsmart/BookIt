@@ -34,7 +34,7 @@ const DEMO_PERSONAS = [
     icon: ShieldCheck,
   },
   {
-    email: 'admin@bookingtrack.com',
+    email: 'admin@bookit.com',
     label: 'Diana Prince — Sandton Medical Clinic',
     roleBadge: 'admin (Doctor)',
     targetPath: '/dashboard',
@@ -43,7 +43,7 @@ const DEMO_PERSONAS = [
     icon: Stethoscope,
   },
   {
-    email: 'thabo@bookingtrack.com',
+    email: 'thabo@bookit.com',
     label: 'Thabo Mokoena — Atelier Hair & Beauty',
     roleBadge: 'manager (Salon)',
     targetPath: '/dashboard',
@@ -52,7 +52,7 @@ const DEMO_PERSONAS = [
     icon: Scissors,
   },
   {
-    email: 'ayesha@bookingtrack.com',
+    email: 'ayesha@bookit.com',
     label: 'Ayesha Pillay — Cape Auto Precision',
     roleBadge: 'manager (Mechanic)',
     targetPath: '/dashboard',
@@ -61,7 +61,7 @@ const DEMO_PERSONAS = [
     icon: Wrench,
   },
   {
-    email: 'sipho@bookingtrack.com',
+    email: 'sipho@bookit.com',
     label: 'Sipho Ndlovu — Customer Account',
     roleBadge: 'customer',
     targetPath: '/my-bookings',

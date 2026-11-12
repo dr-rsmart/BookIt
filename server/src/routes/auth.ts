@@ -533,7 +533,7 @@ router.post('/forgot-password', loginRateLimit, async (req, res) => {
     const adminEmail =
       provider?.owner?.email ||
       provider?.ownerEmail ||
-      (user?.role === 'master' ? 'master@smartpatel.co.za' : 'admin@bookingtrack.com');
+      (user?.role === 'master' ? 'master@smartpatel.co.za' : 'admin@bookit.com');
     const adminName =
       provider?.owner?.fullName || provider?.primaryContactName || 'Business Administrator';
     const providerName = provider?.name || 'BookIt!';

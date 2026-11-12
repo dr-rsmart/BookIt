@@ -23,13 +23,11 @@ import { cn, DAYS_OF_WEEK } from '../../lib/utils';
 import { uploadsApi } from '../../services/api';
 import type { WorkingHoursDay } from '../../../contracts';
 
-export { BookItIcon, BookItLogo, BookingTrackIcon, BookingTrackLogo } from './BookingTrackLogo';
+export { BookItIcon, BookItLogo } from './BookItLogo';
 export type {
   BookItIconProps,
   BookItLogoProps,
-  BookingTrackIconProps,
-  BookingTrackLogoProps,
-} from './BookingTrackLogo';
+} from './BookItLogo';
 
 // ── Button ──
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -7,7 +7,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
-import { BookingTrackLogo } from '../ui/BookingTrackLogo';
+import { BookItLogo } from '../ui';
 
 interface Props {
   children: ReactNode;
@@ -41,7 +41,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div className="flex min-h-screen items-center justify-center bg-background p-6">
           <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 flex justify-center">
-              <BookingTrackLogo size="md" />
+              <BookItLogo size="md" />
             </div>
             <h1 className="mt-4 font-display text-2xl text-foreground">Something went wrong</h1>
             <p className="mt-2 text-sm text-muted-foreground">{this.state.errorMessage}</p>

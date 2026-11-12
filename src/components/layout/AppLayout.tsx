@@ -29,7 +29,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSSEConnection, useSSEStatus } from '../../hooks/useSSE';
 import { masterApi } from '../../services/api';
-import { Button, BookingTrackLogo } from '../ui';
+import { Button, BookItLogo } from '../ui';
 import { cn } from '../../lib/utils';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -126,7 +126,7 @@ export default function AppLayout() {
       <header className="safe-top sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:h-16 sm:gap-3 sm:px-5">
           <Link to="/" aria-label="BookIt! Home" className="flex shrink-0 items-center transition-opacity hover:opacity-90">
-            <BookingTrackLogo size="md" />
+            <BookItLogo size="md" />
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex lg:gap-7">
@@ -294,7 +294,7 @@ export default function AppLayout() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-5 sm:py-10">
           <div>
             <Link to="/" aria-label="BookIt!" className="inline-block">
-              <BookingTrackLogo size="md" />
+              <BookItLogo size="md" />
             </Link>
             <p className="mt-2 text-sm text-muted-foreground">
               Book doctors, salons, mechanics and more across South Africa.

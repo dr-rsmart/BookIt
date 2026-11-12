@@ -52,17 +52,18 @@ describe('BookIt! API Integration', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'admin@bookingtrack.com',
+        email: 'admin@bookit.com',
         password: 'Password123',
       }),
     });
+
     expect(res.status).toBe(200);
     const setCookie = res.headers.get('set-cookie') || '';
     expect(setCookie).toContain('bt_token=');
     cookieHeader = setCookie.split(';')[0];
 
     const body = (await res.json()) as any;
-    expect(body.user.email).toBe('admin@bookingtrack.com');
+    expect(body.user.email).toBe('admin@bookit.com');
     expect(body.user.role).toBe('admin');
     expect(body.user.provider?.name).toContain('Sandton Medical');
   });
@@ -131,12 +132,12 @@ describe('BookIt! API Integration', () => {
   });
 
   it('enforces cross-tenant isolation by rejecting service creation for another provider', async () => {
-    // Sign in as customer (sipho@bookingtrack.com)
+    // Sign in as customer (sipho@bookit.com)
     const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'sipho@bookingtrack.com',
+        email: 'sipho@bookit.com',
         password: 'Password123',
       }),
     });
@@ -205,7 +206,7 @@ describe('BookIt! API Integration', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'sipho@bookingtrack.com',
+        email: 'sipho@bookit.com',
         password: 'Password123',
       }),
     });
@@ -221,7 +222,7 @@ describe('BookIt! API Integration', () => {
       start_time: '16:00',
       end_time: '16:30',
       customer_name: 'Sipho Zulu',
-      customer_email: 'sipho@bookingtrack.com',
+      customer_email: 'sipho@bookit.com',
     };
 
     const [resA, resB] = await Promise.all([

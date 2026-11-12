@@ -16,7 +16,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
 const INSECURE_DEFAULTS = [
-  'BookingTrack-dev-secret-change-in-production',
+  'BookIt-dev-secret-change-in-production',
   'TimeTrack-dev-secret-change-in-production',
   'change-me-in-production',
   'tt_perf_bench_2026',

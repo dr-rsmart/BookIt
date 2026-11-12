@@ -24,7 +24,7 @@ import {
   type BookingRecord,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Button, Input, Textarea, Label, Skeleton, BookingTrackIcon } from '../components/ui';
+import { Button, Input, Textarea, Label, Skeleton, BookItIcon } from '../components/ui';
 import {
   cn,
   todayStr,
@@ -351,7 +351,7 @@ export default function BookAppointment() {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-5 sm:py-16">
         <div className="rounded-3xl border border-primary/25 bg-card p-6 text-center sm:p-8">
-          <BookingTrackIcon className="mx-auto h-16 w-16" />
+          <BookItIcon className="mx-auto h-16 w-16" />
           <h1 className="mt-5 font-display text-2xl text-foreground sm:text-3xl">
             You’re booked in
           </h1>

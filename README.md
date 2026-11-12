@@ -27,14 +27,14 @@ All seeded accounts use password: **`Password123`**
 | `ricardo@smartpatel.tech` | — | `master` | `ChangeMe123!` | Ricardo Smart — Platform Master (Control Center & Simulator) |
 | `raees@smartpatel.tech` | — | `master` | `ChangeMe123!` | Raees Patel — Platform Master (Control Center & Simulator) |
 | `master@smartpatel.co.za` | — | `master` | `Password123` | Platform Master (Cross-tenant Control Center & Simulator) |
-| `admin@bookingtrack.com` | `admin@timetrack.com` | `admin` | `Password123` | Diana Prince — **Sandton Medical & Family Clinic** (Doctor, Sandton) |
-| `thabo@bookingtrack.com` | `thabo@timetrack.com` | `manager` | `Password123` | Thabo Mokoena — **Atelier Hair & Beauty Studio** (Salon, Rosebank) |
-| `ayesha@bookingtrack.com` | `ayesha@timetrack.com` | `manager` | `Password123` | Ayesha Pillay — **Cape Auto Precision Mechanics** (Mechanic, Cape Town) |
-| `pieter@bookingtrack.com` | `pieter@timetrack.com` | `admin` | `Password123` | Pieter van der Merwe — **Waterfront Dental Studio** (Dentist, Cape Town) |
-| `naledi@bookingtrack.com` | `naledi@timetrack.com` | `admin` | `Password123` | Naledi Khumalo — **Fynbos Botanical Spa & Wellness** (Spa & Wellness, Stellenbosch) |
-| `riaan@bookingtrack.com` | `riaan@timetrack.com` | `admin` | `Password123` | Riaan Botha — **Highveld Performance Fitness** (Fitness, Pretoria) |
-| `sipho@bookingtrack.com` | `sipho@timetrack.com` | `customer` | `Password123` | Sipho Ndlovu — Customer with upcoming & completed appointments |
-| `lerato@bookingtrack.com` | `lerato@timetrack.com` | `customer` | `Password123` | Lerato Dlamini — Customer with pending & completed appointments |
+| `admin@bookit.com` | `admin@timetrack.com` | `admin` | `Password123` | Diana Prince — **Sandton Medical & Family Clinic** (Doctor, Sandton) |
+| `thabo@bookit.com` | `thabo@timetrack.com` | `manager` | `Password123` | Thabo Mokoena — **Atelier Hair & Beauty Studio** (Salon, Rosebank) |
+| `ayesha@bookit.com` | `ayesha@timetrack.com` | `manager` | `Password123` | Ayesha Pillay — **Cape Auto Precision Mechanics** (Mechanic, Cape Town) |
+| `pieter@bookit.com` | `pieter@timetrack.com` | `admin` | `Password123` | Pieter van der Merwe — **Waterfront Dental Studio** (Dentist, Cape Town) |
+| `naledi@bookit.com` | `naledi@timetrack.com` | `admin` | `Password123` | Naledi Khumalo — **Fynbos Botanical Spa & Wellness** (Spa & Wellness, Stellenbosch) |
+| `riaan@bookit.com` | `riaan@timetrack.com` | `admin` | `Password123` | Riaan Botha — **Highveld Performance Fitness** (Fitness, Pretoria) |
+| `sipho@bookit.com` | `sipho@timetrack.com` | `customer` | `Password123` | Sipho Ndlovu — Customer with upcoming & completed appointments |
+| `lerato@bookit.com` | `lerato@timetrack.com` | `customer` | `Password123` | Lerato Dlamini — Customer with pending & completed appointments |
 
 ---
 

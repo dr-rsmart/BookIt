@@ -11,7 +11,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, Loader2, Ban, AlertTriangle, ArrowLeft, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Button, Input, Label, BookingTrackLogo } from '../components/ui';
+import { Button, Input, Label, BookItLogo } from '../components/ui';
 import { ApiError } from '../services/api';
 
 export default function Login() {
@@ -70,7 +70,7 @@ export default function Login() {
             aria-label="BookIt! Home"
             className="mb-5 inline-flex items-center justify-center transition-opacity hover:opacity-90"
           >
-            <BookingTrackLogo size="lg" />
+            <BookItLogo size="lg" />
           </Link>
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
             Welcome back

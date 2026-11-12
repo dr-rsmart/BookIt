@@ -127,7 +127,7 @@ BookIt! is engineered mobile-first with platform-specific optimizations for both
 **A:** BookIt! runs an automated background maintenance job every 60 seconds (`server/src/cron.ts`) synchronized to South African Standard Time (`Africa/Johannesburg`). Confirmed bookings scheduled within the next 24 hours automatically receive a reminder timestamp (`reminder_sent_at`), displayed as a **Reminder sent** badge on your booking card.
 
 ### Q5: How do I switch between Light Mode and Dark Mode?
-**A:** Tap the **Sun / Moon** icon in the top header bar on any page (including Login and Register). Your preference is saved locally on your device (`bookingtrack_theme`) and respects your operating system's default appearance until overridden.
+**A:** Tap the **Sun / Moon** icon in the top header bar on any page (including Login and Register). Your preference is saved locally on your device (`bookit_theme`) and respects your operating system's default appearance until overridden.
 
 ---
 
@@ -213,14 +213,14 @@ All standard demo accounts use password **`Password123`** (Platform Master opera
 | **Platform Master** (Control Center & Simulator) | `master@smartpatel.co.za` | — | `master` | `Password123` |
 | **Ricardo Smart** (Platform Master Operator) | `ricardo@smartpatel.tech` | — | `master` | `ChangeMe123!` |
 | **Raees Patel** (Platform Master Operator) | `raees@smartpatel.tech` | — | `master` | `ChangeMe123!` |
-| **Sandton Medical & Family Clinic** (Doctor, Sandton) | `admin@bookingtrack.com` | `admin@timetrack.com` | `admin` | `Password123` |
-| **Atelier Hair & Beauty Studio** (Salon, Rosebank) | `thabo@bookingtrack.com` | `thabo@timetrack.com` | `manager` | `Password123` |
-| **Cape Auto Precision Mechanics** (Mechanic, Cape Town) | `ayesha@bookingtrack.com` | `ayesha@timetrack.com` | `manager` | `Password123` |
-| **Waterfront Dental Studio** (Dentist, Cape Town) | `pieter@bookingtrack.com` | `pieter@timetrack.com` | `admin` | `Password123` |
-| **Fynbos Botanical Spa & Wellness** (Spa, Stellenbosch) | `naledi@bookingtrack.com` | `naledi@timetrack.com` | `admin` | `Password123` |
-| **Highveld Performance Fitness** (Fitness, Pretoria) | `riaan@bookingtrack.com` | `riaan@timetrack.com` | `admin` | `Password123` |
-| **Sipho Ndlovu** (Customer Account) | `sipho@bookingtrack.com` | `sipho@timetrack.com` | `customer` | `Password123` |
-| **Lerato Dlamini** (Customer Account) | `lerato@bookingtrack.com` | `lerato@timetrack.com` | `customer` | `Password123` |
+| **Sandton Medical & Family Clinic** (Doctor, Sandton) | `admin@bookit.com` | `admin@timetrack.com` | `admin` | `Password123` |
+| **Atelier Hair & Beauty Studio** (Salon, Rosebank) | `thabo@bookit.com` | `thabo@timetrack.com` | `manager` | `Password123` |
+| **Cape Auto Precision Mechanics** (Mechanic, Cape Town) | `ayesha@bookit.com` | `ayesha@timetrack.com` | `manager` | `Password123` |
+| **Waterfront Dental Studio** (Dentist, Cape Town) | `pieter@bookit.com` | `pieter@timetrack.com` | `admin` | `Password123` |
+| **Fynbos Botanical Spa & Wellness** (Spa, Stellenbosch) | `naledi@bookit.com` | `naledi@timetrack.com` | `admin` | `Password123` |
+| **Highveld Performance Fitness** (Fitness, Pretoria) | `riaan@bookit.com` | `riaan@timetrack.com` | `admin` | `Password123` |
+| **Sipho Ndlovu** (Customer Account) | `sipho@bookit.com` | `sipho@timetrack.com` | `customer` | `Password123` |
+| **Lerato Dlamini** (Customer Account) | `lerato@bookit.com` | `lerato@timetrack.com` | `customer` | `Password123` |
 
 ---
 

@@ -3,8 +3,8 @@
  * -------------------
  * Populates the database with:
  * - Platform Master (`master@smartpatel.co.za`)
- * - Business Owners / Admins (`admin@bookingtrack.com` / `admin@timetrack.com`, `thabo@...`, `ayesha@...`, `pieter@...`, `naledi@...`, `riaan@...`)
- * - Customers (`sipho@bookingtrack.com` / `sipho@timetrack.com`, `lerato@...`)
+ * - Business Owners / Admins (`admin@bookit.com` / `admin@timetrack.com`, `thabo@...`, `ayesha@...`, `pieter@...`, `naledi@...`, `riaan@...`)
+ * - Customers (`sipho@bookit.com` / `sipho@timetrack.com`, `lerato@...`)
  * - 6 published South African businesses across Doctor, Salon, Mechanic, Dentist, Spa & Wellness, and Fitness
  * - Services, Professionals, 14 days of open time slots, and realistic bookings (today, upcoming, pending, completed)
  *
@@ -75,10 +75,10 @@ async function main() {
     },
   });
 
-  // ── 2. Customers (with both @bookingtrack.com and @timetrack.com accounts) ──
+  // ── 2. Customers (with both @bookit.com and @timetrack.com accounts) ──
   const sipho = await prisma.user.create({
     data: {
-      email: 'sipho@bookingtrack.com',
+      email: 'sipho@bookit.com',
       fullName: 'Sipho Ndlovu',
       phone: '+27 82 555 0142',
       role: 'customer',
@@ -97,7 +97,7 @@ async function main() {
 
   const lerato = await prisma.user.create({
     data: {
-      email: 'lerato@bookingtrack.com',
+      email: 'lerato@bookit.com',
       fullName: 'Lerato Dlamini',
       phone: '+27 83 555 0198',
       role: 'customer',
@@ -292,7 +292,7 @@ async function main() {
 
   // ── Provider 1: Sandton Medical & Family Clinic (Doctor) ──
   const clinic = await createProviderBundle({
-    ownerEmail: 'admin@bookingtrack.com',
+    ownerEmail: 'admin@bookit.com',
     aliasEmail: 'admin@timetrack.com',
     ownerName: 'Diana Prince',
     ownerPhone: '+27 11 555 0101',
@@ -353,7 +353,7 @@ async function main() {
 
   // ── Provider 2: Atelier Hair & Beauty Studio (Salon) ──
   const salon = await createProviderBundle({
-    ownerEmail: 'thabo@bookingtrack.com',
+    ownerEmail: 'thabo@bookit.com',
     aliasEmail: 'thabo@timetrack.com',
     ownerName: 'Thabo Mokoena',
     ownerPhone: '+27 11 555 0210',
@@ -415,7 +415,7 @@ async function main() {
 
   // ── Provider 3: Cape Auto Precision Mechanics (Mechanic) ──
   const mechanic = await createProviderBundle({
-    ownerEmail: 'ayesha@bookingtrack.com',
+    ownerEmail: 'ayesha@bookit.com',
     aliasEmail: 'ayesha@timetrack.com',
     ownerName: 'Ayesha Pillay',
     ownerPhone: '+27 21 555 0340',
@@ -478,7 +478,7 @@ async function main() {
 
   // ── Provider 4: Waterfront Dental Studio (Dentist) ──
   await createProviderBundle({
-    ownerEmail: 'pieter@bookingtrack.com',
+    ownerEmail: 'pieter@bookit.com',
     aliasEmail: 'pieter@timetrack.com',
     ownerName: 'Pieter van der Merwe',
     ownerPhone: '+27 21 555 0411',
@@ -526,7 +526,7 @@ async function main() {
 
   // ── Provider 5: Fynbos Botanical Spa & Wellness (Spa & Wellness) ──
   await createProviderBundle({
-    ownerEmail: 'naledi@bookingtrack.com',
+    ownerEmail: 'naledi@bookit.com',
     aliasEmail: 'naledi@timetrack.com',
     ownerName: 'Naledi Khumalo',
     ownerPhone: '+27 21 555 0522',
@@ -574,7 +574,7 @@ async function main() {
 
   // ── Provider 6: Highveld Performance Fitness (Fitness) ──
   await createProviderBundle({
-    ownerEmail: 'riaan@bookingtrack.com',
+    ownerEmail: 'riaan@bookit.com',
     aliasEmail: 'riaan@timetrack.com',
     ownerName: 'Riaan Botha',
     ownerPhone: '+27 12 555 0633',

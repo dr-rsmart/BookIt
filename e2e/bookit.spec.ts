@@ -70,7 +70,7 @@ test.describe('BookIt! End-to-End Suite', () => {
     await expect(page.locator('h1')).toContainText(/Welcome back/i);
 
     // Sign in as business admin
-    await page.fill('#email', 'admin@bookingtrack.com');
+    await page.fill('#email', 'admin@bookit.com');
     await page.fill('#password', 'Password123');
 
     await Promise.all([
@@ -172,7 +172,7 @@ test.describe('BookIt! End-to-End Suite', () => {
     // Sign in and verify Dashboard pages on mobile
     await page.goto('/login?returnTo=/dashboard');
     await checkNoHorizontalOverflow();
-    await page.fill('#email', 'admin@bookingtrack.com');
+    await page.fill('#email', 'admin@bookit.com');
     await page.fill('#password', 'Password123');
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/auth/login') && r.status() === 200),

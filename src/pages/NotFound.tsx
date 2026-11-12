@@ -3,7 +3,7 @@
  */
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BookingTrackLogo } from '../components/ui';
+import { BookItLogo } from '../components/ui';
 
 export default function NotFound() {
   const location = useLocation();
@@ -14,7 +14,7 @@ export default function NotFound() {
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md text-center space-y-6">
         <div className="flex justify-center">
-          <BookingTrackLogo size="lg" />
+          <BookItLogo size="lg" />
         </div>
         <div className="space-y-2">
           <h1 className="text-7xl font-light text-muted-foreground/40">404</h1>

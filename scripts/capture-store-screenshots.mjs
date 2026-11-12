@@ -321,7 +321,7 @@ async function captureProfile(browser, dev) {
 
     // ── 06. Customer My Bookings ──
     console.log('  [06/15] 06_Customer_My_Bookings.png');
-    await loginAs(page, 'sipho@bookingtrack.com');
+    await loginAs(page, 'sipho@bookit.com');
     await page.goto('/my-bookings');
     await page.waitForSelector('h1', { timeout: 10_000 });
     await page.waitForTimeout(600);
@@ -330,7 +330,7 @@ async function captureProfile(browser, dev) {
 
     // ── 07. Business Dashboard Overview & KPIs ──
     console.log('  [07/15] 07_Dashboard_Overview.png');
-    await loginAs(page, 'admin@bookingtrack.com');
+    await loginAs(page, 'admin@bookit.com');
     await page.goto('/dashboard');
     await page.waitForSelector('h1', { timeout: 10_000 });
     await page.waitForTimeout(700);

@@ -10,7 +10,7 @@ import { Mail, Lock, User, Loader2, ArrowLeft, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Button, Input, Label, BookingTrackLogo } from '../components/ui';
+import { Button, Input, Label, BookItLogo } from '../components/ui';
 import { ApiError } from '../services/api';
 
 export default function Register() {
@@ -77,7 +77,7 @@ export default function Register() {
             aria-label="BookIt! Home"
             className="mb-5 inline-flex items-center justify-center transition-opacity hover:opacity-90"
           >
-            <BookingTrackLogo size="lg" />
+            <BookItLogo size="lg" />
           </Link>
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
             Create your account

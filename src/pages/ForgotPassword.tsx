@@ -9,7 +9,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2, KeyRound, Building2, User } from 'lucide-react';
 import { authApi } from '../services/api';
-import { Button, Input, Label, BookingTrackLogo } from '../components/ui';
+import { Button, Input, Label, BookItLogo } from '../components/ui';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -35,7 +35,7 @@ export default function ForgotPassword() {
     } catch {
       setResult({
         message: 'Please reach out to your business administrator to reset your password.',
-        adminEmail: 'admin@bookingtrack.com',
+        adminEmail: 'admin@bookit.com',
         adminName: 'Business Administrator',
         providerName: 'BookIt!',
       });
@@ -53,7 +53,7 @@ export default function ForgotPassword() {
             aria-label="BookIt! Home"
             className="mb-5 inline-flex items-center justify-center transition-opacity hover:opacity-90"
           >
-            <BookingTrackLogo size="lg" />
+            <BookItLogo size="lg" />
           </Link>
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
             Forgot Password

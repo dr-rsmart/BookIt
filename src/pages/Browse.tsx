@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, MapPin, ArrowRight, X } from 'lucide-react';
 import { providersApi, type ProviderRecord } from '../services/api';
-import { Input, Skeleton, BookingTrackIcon } from '../components/ui';
+import { Input, Skeleton, BookItIcon } from '../components/ui';
 import { CATEGORIES, getCategoryMeta, cn } from '../lib/utils';
 import { useSSE } from '../hooks/useSSE';
 
@@ -100,7 +100,7 @@ export default function Browse() {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/70" />
         <div className="relative mx-auto w-full max-w-6xl px-4 py-10 sm:px-5 sm:py-16 lg:py-24">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5">
-            <BookingTrackIcon className="h-5 w-5" withShadow={false} />
+            <BookItIcon className="h-5 w-5" withShadow={false} />
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary sm:tracking-[0.28em]">
               Appointments, simplified
             </p>

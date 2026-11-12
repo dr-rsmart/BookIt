@@ -80,7 +80,7 @@ describe('BookIt! Core Infrastructure & Domain', () => {
       country: 'South Africa',
       coverImage: '',
       workingHours: [] as any,
-      ownerEmail: 'admin@bookingtrack.com',
+      ownerEmail: 'admin@bookit.com',
       ownerUserId: 'usr_1',
       status: 'published',
       isActive: true,
@@ -123,7 +123,7 @@ describe('BookIt! Core Infrastructure & Domain', () => {
       slotId: 'slot_1',
       customerId: 'cust_1',
       customerName: 'Sipho Ndlovu',
-      customerEmail: 'sipho@bookingtrack.com',
+      customerEmail: 'sipho@bookit.com',
       customerPhone: '+27 82 555 0142',
       date: '2026-11-04',
       startTime: '10:00',
@@ -172,7 +172,7 @@ describe('BookIt! Core Infrastructure & Domain', () => {
   it('enforces booking mutation rules: customers may only cancel their own bookings', async () => {
     const customer = {
       id: 'cust_1',
-      email: 'customer@bookingtrack.com',
+      email: 'customer@bookit.com',
       fullName: 'Customer One',
       role: 'customer' as const,
       providerId: null,
@@ -180,7 +180,7 @@ describe('BookIt! Core Infrastructure & Domain', () => {
     const booking = {
       providerId: 'prov_99',
       customerId: 'cust_1',
-      customerEmail: 'customer@bookingtrack.com',
+      customerEmail: 'customer@bookit.com',
     };
 
     const cancelPerm = await canMutateBooking(customer, booking, 'cancelled');
@@ -193,7 +193,7 @@ describe('BookIt! Core Infrastructure & Domain', () => {
     const otherBooking = {
       providerId: 'prov_99',
       customerId: 'cust_2',
-      customerEmail: 'other@bookingtrack.com',
+      customerEmail: 'other@bookit.com',
     };
     const deniedPerm = await canMutateBooking(customer, otherBooking, 'cancelled');
     expect(deniedPerm.allowed).toBe(false);
@@ -201,7 +201,7 @@ describe('BookIt! Core Infrastructure & Domain', () => {
   });
 
   it('appends PostgreSQL connection pool parameters via withPoolConfig', () => {
-    const configured = withPoolConfig('postgresql://postgres:pass@localhost:5433/bookingtrack_pre-prod');
+    const configured = withPoolConfig('postgresql://postgres:pass@localhost:5433/bookit_pre-prod');
     expect(configured).toContain('connection_limit=50');
     expect(configured).toContain('pool_timeout=30');
     expect(configured).toContain('connection_timeout=10');

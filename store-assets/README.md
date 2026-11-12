@@ -68,8 +68,8 @@ store-assets/
 | 03 | `03_Booking_Wizard.png` | `/providers/:id/book` | Public / Customer | 4-step interactive appointment booking wizard (Service → Professional → Date & Open Slot → Confirmation) |
 | 04 | `04_Login.png` | `/login` | Public | BookIt! brand lockup, email & password sign-in, forgot password lookup link, light/dark theme toggle |
 | 05 | `05_Register.png` | `/register` | Public | Customer & business owner self-service registration with default `Password123` convenience option |
-| 06 | `06_Customer_My_Bookings.png` | `/my-bookings` | Customer (`sipho@bookingtrack.com`) | Upcoming and past appointments, relative time badges, 24h reminder indicators, instant slot-releasing cancellation |
-| 07 | `07_Dashboard_Overview.png` | `/dashboard` | Business Admin (`admin@bookingtrack.com`) | Today's appointments count, upcoming bookings, confirmed revenue in ZAR (`R`), Today's Schedule, All Bookings filterable list |
+| 06 | `06_Customer_My_Bookings.png` | `/my-bookings` | Customer (`sipho@bookit.com`) | Upcoming and past appointments, relative time badges, 24h reminder indicators, instant slot-releasing cancellation |
+| 07 | `07_Dashboard_Overview.png` | `/dashboard` | Business Admin (`admin@bookit.com`) | Today's appointments count, upcoming bookings, confirmed revenue in ZAR (`R`), Today's Schedule, All Bookings filterable list |
 | 08 | `08_Dashboard_Availability.png` | `/dashboard/availability` | Business Admin | Single slot creator, Bulk Slot Generator (date range, days of week, interval, duration), overlap & duplicate protection |
 | 09 | `09_Dashboard_Services.png` | `/dashboard/services` | Business Admin | Service catalog management, duration in minutes, ZAR rate & price notes, assigned professionals, active toggle |
 | 10 | `10_Dashboard_Team.png` | `/dashboard/team` | Business Admin | Professional/practitioner roster, specialty title, bio, avatar upload, active status toggle |
