@@ -47,17 +47,24 @@ try {
   const { PrismaClient } = require('@prisma/client');
   const prisma = new PrismaClient();
   const userCount = await prisma.user.count();
+  const legacyBookingtrackCount = await prisma.user.count({
+    where: { email: { contains: 'bookingtrack.com' } },
+  });
   await prisma.$disconnect();
 
-  if (userCount === 0) {
-    log('Empty database detected — seeding initial BookIt! accounts and South African businesses...');
+  if (userCount === 0 || legacyBookingtrackCount > 0) {
+    log(
+      userCount === 0
+        ? 'Empty database detected — seeding initial BookIt! accounts...'
+        : `Migrating legacy test accounts (${legacyBookingtrackCount} found) — seeding fresh BookIt! accounts...`,
+    );
     execSync('node dist/seed.js', {
       cwd: SERVER_DIR,
       stdio: 'inherit',
       timeout: 120_000,
       env: { ...process.env },
     });
-    log('Initial database seed completed.');
+    log('Database seed completed.');
   } else {
     log(`Database already populated (${userCount} user accounts) — skipping initial seed.`);
   }
