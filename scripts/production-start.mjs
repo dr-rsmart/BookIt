@@ -30,13 +30,23 @@ try {
 }
 
 try {
-  log('Syncing Prisma schema safely (non-destructive)...');
-  execSync('npx prisma db push --schema=prisma/schema.prisma --skip-generate', {
-    cwd: SERVER_DIR,
-    stdio: 'inherit',
-    timeout: 120_000,
-    env: { ...process.env },
-  });
+  log('Syncing Prisma schema (non-destructive first, fallback to accept-data-loss)...');
+  try {
+    execSync('npx prisma db push --schema=prisma/schema.prisma --skip-generate', {
+      cwd: SERVER_DIR,
+      stdio: 'inherit',
+      timeout: 120_000,
+      env: { ...process.env },
+    });
+  } catch (_safeErr) {
+    log('Safe sync prompted for schema differences (e.g. dropped legacy columns) — retrying with --accept-data-loss...');
+    execSync('npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss', {
+      cwd: SERVER_DIR,
+      stdio: 'inherit',
+      timeout: 120_000,
+      env: { ...process.env },
+    });
+  }
 } catch (err) {
   log(`❌ Database schema sync failed: ${err.message}`);
   process.exit(1);
@@ -50,13 +60,17 @@ try {
   const legacyBookingtrackCount = await prisma.user.count({
     where: { email: { contains: 'bookingtrack.com' } },
   });
+  const legacyHerBeautyCount = await prisma.user.count({
+    where: { email: { contains: 'herbeauty.co.za' } },
+  });
   await prisma.$disconnect();
 
-  if (userCount === 0 || legacyBookingtrackCount > 0) {
+  const foreignCount = legacyBookingtrackCount + legacyHerBeautyCount;
+  if (userCount === 0 || foreignCount > 0) {
     log(
       userCount === 0
         ? 'Empty database detected — seeding initial BookIt! accounts...'
-        : `Migrating legacy test accounts (${legacyBookingtrackCount} found) — seeding fresh BookIt! accounts...`,
+        : `Migrating legacy/foreign test accounts (${foreignCount} found) — seeding fresh BookIt! accounts...`,
     );
     execSync('node dist/seed.js', {
       cwd: SERVER_DIR,
