@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, LogIn, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, LogIn, Loader2, HeartPulse, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   providersApi,
@@ -376,16 +376,17 @@ export default function BookAppointment() {
             </div>
             {formatZAR(confirmedBooking.price) && (
               <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-                <dt className="text-muted-foreground">Rate</dt>
+                <dt className="text-muted-foreground">Rate (Pay in person)</dt>
                 <dd className="font-medium text-foreground sm:font-normal">
-                  {formatZAR(confirmedBooking.price)}
+                  {formatZAR(confirmedBooking.price)} · Payable at the venue
                 </dd>
               </div>
             )}
           </dl>
 
           <p className="mt-5 text-sm text-muted-foreground">
-            A reminder will appear here in your bookings 24 hours before your appointment.
+            A reminder will appear here in your bookings 24 hours before your appointment. No online
+            payment is charged in the app.
           </p>
 
           <div className="mt-7 flex flex-col justify-center gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3">
@@ -421,6 +422,21 @@ export default function BookAppointment() {
       <div className="mt-5 sm:mt-6">
         <StepPills steps={STEPS} current={step} />
       </div>
+
+      {(provider.category === 'Doctor' || provider.category === 'Dentist') && (
+        <div
+          role="note"
+          className="mt-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3.5 text-xs leading-relaxed text-muted-foreground"
+        >
+          <HeartPulse className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <p>
+            <strong className="text-foreground">Not for medical emergencies:</strong> If you are
+            experiencing a medical emergency, call <strong>10177</strong> or <strong>112</strong>{' '}
+            immediately. BookIt! facilitates appointment scheduling only and does not provide
+            medical advice.
+          </p>
+        </div>
+      )}
 
       <div className="mt-8 space-y-6">
         {/* Step 0: Select Service */}
@@ -539,6 +555,13 @@ export default function BookAppointment() {
                   'Any professional'}
                 {formatZAR(selectedService?.price) ? ` · ${formatZAR(selectedService?.price)}` : ''}
               </p>
+              <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Banknote className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span>
+                  Pay in person at {provider.name} — no payment or booking fee is charged in this
+                  app.
+                </span>
+              </p>
             </div>
 
             {isAuthenticated ? (
@@ -574,7 +597,11 @@ export default function BookAppointment() {
                     onChange={(e) =>
                       setCustomerDetails({ ...customerDetails, notes: e.target.value })
                     }
-                    placeholder="Optional details for the professional"
+                    placeholder={
+                      provider.category === 'Doctor' || provider.category === 'Dentist'
+                        ? 'Optional scheduling notes (please do not enter confidential medical records or emergency symptoms)'
+                        : 'Optional details for the professional'
+                    }
                     className="mt-2"
                   />
                 </div>

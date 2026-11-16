@@ -12,7 +12,7 @@ export const loginSchema = z.object({
 
 export const registerSchema = z.object({
   email: z.string().email('Valid email is required'),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().optional(),
   phone: z.string().optional(),
 });
@@ -20,6 +20,25 @@ export const registerSchema = z.object({
 export const changePasswordSchema = z.object({
   currentPassword: z.string().optional(),
   newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Current password is required to confirm account deletion'),
+  reason: z.string().max(500).optional(),
+});
+
+export const resetPasswordTokenSchema = z.object({
+  token: z.string().min(16, 'Valid password reset token is required'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+});
+
+export const reportProviderSchema = z.object({
+  reason: z.string().min(3, 'Please provide a reason for reporting this listing').max(1000),
+  category: z
+    .enum(['inappropriate', 'fraudulent', 'impersonation', 'medical_safety', 'other'])
+    .optional()
+    .default('other'),
+  reporterEmail: z.string().email().optional().or(z.literal('')),
 });
 
 export const workingHourItemSchema = z.object({

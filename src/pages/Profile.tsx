@@ -3,14 +3,16 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { User, KeyRound, ShieldCheck, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, KeyRound, ShieldCheck, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { authApi, ApiError } from '../services/api';
-import { Badge, Button, Input, Label } from '../components/ui';
+import { Badge, Button, DialogModal, Input, Label } from '../components/ui';
 
 export default function Profile() {
-  const { user, refresh } = useAuth();
+  const { user, refresh, logout } = useAuth();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -19,6 +21,11 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
@@ -181,6 +188,122 @@ export default function Profile() {
           </Button>
         </div>
       </form>
+
+      {user?.role !== 'master' && user?.originalRole !== 'master' && (
+        <section
+          aria-labelledby="delete-account-heading"
+          className="space-y-4 rounded-3xl border border-destructive/30 bg-destructive/5 p-5 sm:p-6"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" />
+                <h2 id="delete-account-heading" className="font-display text-lg">
+                  Delete account & personal data
+                </h2>
+              </div>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Permanently delete your BookIt! account and personal details in accordance with
+                POPIA, GDPR, Apple App Store, and Google Play policies. Any upcoming appointments
+                will be cancelled and their time slots released.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full rounded-full sm:w-auto"
+              onClick={() => {
+                setDeletePassword('');
+                setDeleteReason('');
+                setDeleteModalOpen(true);
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete my account
+            </Button>
+          </div>
+
+          <DialogModal
+            open={deleteModalOpen}
+            onOpenChange={setDeleteModalOpen}
+            title="Permanently delete your account?"
+            footer={
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setDeleteModalOpen(false)}
+                  disabled={deletingAccount}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deletingAccount || !deletePassword.trim()}
+                  onClick={async () => {
+                    setDeletingAccount(true);
+                    try {
+                      const res = await authApi.deleteAccount({
+                        password: deletePassword,
+                        reason: deleteReason.trim() || undefined,
+                      });
+                      toast.success(res.message);
+                      setDeleteModalOpen(false);
+                      await logout();
+                      navigate('/');
+                    } catch (err) {
+                      toast.error(
+                        err instanceof ApiError ? err.message : 'Failed to delete account',
+                      );
+                    } finally {
+                      setDeletingAccount(false);
+                    }
+                  }}
+                >
+                  {deletingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Permanently delete account
+                </Button>
+              </>
+            }
+          >
+            <div className="space-y-4 text-sm">
+              <div className="flex items-start gap-2.5 rounded-2xl border border-destructive/30 bg-destructive/10 p-3.5 text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="text-xs leading-relaxed">
+                  This action cannot be undone. Your account record, name, email, and phone number
+                  will be permanently deleted, and any upcoming appointments will be cancelled.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="delete-pwd">Confirm your current password</Label>
+                <Input
+                  id="delete-pwd"
+                  type="password"
+                  required
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="delete-reason">Reason for leaving (optional)</Label>
+                <Input
+                  id="delete-reason"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Optional feedback"
+                  className="mt-2"
+                />
+              </div>
+            </div>
+          </DialogModal>
+        </section>
+      )}
     </div>
   );
 }

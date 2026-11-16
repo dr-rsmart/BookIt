@@ -38,6 +38,7 @@ import AuditLog from './pages/AuditLog';
 import MasterConsole from './pages/MasterConsole';
 import Demo from './pages/Demo';
 import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import Support from './pages/Support';
 import NotFound from './pages/NotFound';
 
@@ -109,6 +110,7 @@ export default function App() {
               <Route path="/providers/:id" element={<ProviderDetail />} />
               <Route path="/providers/:id/book" element={<BookAppointment />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="/support" element={<Support />} />
 
               {/* Authenticated Customer, Business Provider & Governance Routes */}

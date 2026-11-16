@@ -301,6 +301,9 @@ export default function AppLayout() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <Link to="/terms" className="hover:text-foreground">
+              Terms & Conditions
+            </Link>
             <Link to="/privacy" className="hover:text-foreground">
               Privacy Policy
             </Link>

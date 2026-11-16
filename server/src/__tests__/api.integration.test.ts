@@ -267,4 +267,141 @@ describe('BookIt! API Integration', () => {
     await prisma.booking.deleteMany({ where: { id: winnerData.id } });
     await prisma.slot.deleteMany({ where: { id: testSlot.id } });
   });
+
+  it('enforces strong password on registration, supports mobile Bearer auth, logs UGC reports, and deletes account with slot release & PII erasure (Apple 5.1.1(v) & Google Play)', async () => {
+    // 1. Reject registration with empty/short password (no silent Password123 fallback)
+    const badRegRes = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'shortpwd@bookit.com',
+        password: '',
+        fullName: 'Short Pwd',
+      }),
+    });
+    expect(badRegRes.status).toBe(400);
+
+    // 2. Register a fresh customer account
+    const uniqueEmail = `delete-test-${Date.now()}@bookit.com`;
+    const regRes = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: uniqueEmail,
+        password: 'SecureUserPass99!',
+        fullName: 'Erasure Test User',
+        phone: '+27 82 000 9999',
+      }),
+    });
+    expect(regRes.status).toBe(201);
+    const regBody = (await regRes.json()) as any;
+    expect(regBody.token).toBeTruthy();
+    expect(regBody.user.email).toBe(uniqueEmail);
+    const bearerToken = regBody.token as string;
+
+    // 3. Verify mobile Bearer token works with non-HTTPS mobile Origin header (Expo / React Native CSRF compatibility)
+    const profileUpdateRes = await fetch(`${baseUrl}/api/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bearerToken}`,
+        Origin: 'bookit://mobile',
+      },
+      body: JSON.stringify({
+        fullName: 'Erasure Test User Updated',
+        phone: '+27 82 000 9999',
+      }),
+    });
+    expect(profileUpdateRes.status).toBe(200);
+
+    // 4. Create a test slot and book it as this customer
+    const provRes = await fetch(`${baseUrl}/api/providers?status=published`);
+    const provBody = (await provRes.json()) as any;
+    const provider = provBody.items[0];
+    const prosRes = await fetch(`${baseUrl}/api/professionals?provider_id=${provider.id}`);
+    const prosBody = (await prosRes.json()) as any;
+    const pro = prosBody.items[0];
+
+    const slotDate = '2026-12-20';
+    const erasureSlot = await prisma.slot.create({
+      data: {
+        providerId: provider.id,
+        professionalId: pro.id,
+        date: slotDate,
+        startTime: '17:00',
+        endTime: '17:30',
+        status: 'open',
+      },
+    });
+
+    const bookingRes = await fetch(`${baseUrl}/api/bookings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bearerToken}`,
+      },
+      body: JSON.stringify({
+        provider_id: provider.id,
+        provider_name: provider.name,
+        service_name: 'Erasure Slot Test',
+        slot_id: erasureSlot.id,
+        date: slotDate,
+        start_time: '17:00',
+        end_time: '17:30',
+        customer_name: 'Erasure Test User Updated',
+        customer_email: uniqueEmail,
+      }),
+    });
+    expect(bookingRes.status).toBe(201);
+    const createdBooking = (await bookingRes.json()) as any;
+
+    // 5. Submit a UGC Trust & Safety report on the provider (Apple Guideline 1.2)
+    const reportRes = await fetch(`${baseUrl}/api/providers/${provider.id}/report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bearerToken}`,
+      },
+      body: JSON.stringify({
+        category: 'other',
+        reason: 'Automated compliance verification report',
+      }),
+    });
+    expect(reportRes.status).toBe(201);
+
+    // 6. Permanently delete the account via DELETE /api/auth/account
+    const delRes = await fetch(`${baseUrl}/api/auth/account`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bearerToken}`,
+      },
+      body: JSON.stringify({
+        password: 'SecureUserPass99!',
+        reason: 'Testing Apple 5.1.1(v) & Google Play account deletion',
+      }),
+    });
+    expect(delRes.status).toBe(200);
+    const delBody = (await delRes.json()) as any;
+    expect(delBody.success).toBe(true);
+    expect(delBody.cancelledBookingsCount).toBe(1);
+
+    // 7. Verify User is deleted, Slot is released back to 'open', and Booking PII is anonymized
+    const deletedUser = await prisma.user.findUnique({ where: { email: uniqueEmail } });
+    expect(deletedUser).toBeNull();
+
+    const releasedSlot = await prisma.slot.findUnique({ where: { id: erasureSlot.id } });
+    expect(releasedSlot?.status).toBe('open');
+    expect(releasedSlot?.bookingId).toBeNull();
+
+    const scrubbedBooking = await prisma.booking.findUnique({ where: { id: createdBooking.id } });
+    expect(scrubbedBooking?.status).toBe('cancelled');
+    expect(scrubbedBooking?.customerId).toBeNull();
+    expect(scrubbedBooking?.customerEmail).toBe('deleted@bookit.invalid');
+    expect(scrubbedBooking?.customerName).toBe('Deleted User');
+
+    // Clean up test booking and slot
+    await prisma.booking.deleteMany({ where: { id: createdBooking.id } });
+    await prisma.slot.deleteMany({ where: { id: erasureSlot.id } });
+  });
 });

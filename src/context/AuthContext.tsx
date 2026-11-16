@@ -16,6 +16,7 @@ import {
 } from 'react';
 import {
   authApi,
+  setAuthBearerToken,
   registerSessionHandler,
   suppressUnauthenticatedErrors,
   type CurrentUser,
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
+    if (res.token) setAuthBearerToken(res.token);
     hadSessionRef.current = true;
     setSessionError(null);
     setUser(res.user);
@@ -98,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (data: { email: string; password: string; fullName?: string; phone?: string }) => {
       const res = await authApi.register(data);
+      if (res.token) setAuthBearerToken(res.token);
       hadSessionRef.current = true;
       setSessionError(null);
       setUser(res.user);
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // non-fatal
     } finally {
+      setAuthBearerToken(null);
       hadSessionRef.current = false;
       setSessionError(null);
       setUser(null);

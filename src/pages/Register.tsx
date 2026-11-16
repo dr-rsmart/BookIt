@@ -21,8 +21,8 @@ export default function Register() {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('Password123');
-  const [confirm, setConfirm] = useState('Password123');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,8 +33,12 @@ export default function Register() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    const effectivePassword = password.trim() || 'Password123';
-    if (password && password !== confirm) {
+    const effectivePassword = password.trim();
+    if (effectivePassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (effectivePassword !== confirm.trim()) {
       setError('Passwords do not match');
       return;
     }
@@ -136,7 +140,7 @@ export default function Register() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <span className="text-[11px] text-muted-foreground">Default: Password123</span>
+                <span className="text-[11px] text-muted-foreground">Min. 6 characters</span>
               </div>
               <div className="relative">
                 <Lock
@@ -147,7 +151,9 @@ export default function Register() {
                   id="password"
                   type="password"
                   autoComplete="new-password"
-                  placeholder="Password123"
+                  placeholder="Create a password"
+                  minLength={6}
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-12 pl-10"
@@ -167,13 +173,23 @@ export default function Register() {
                   type="password"
                   autoComplete="new-password"
                   placeholder="Repeat password"
+                  minLength={6}
+                  required
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   className="h-12 pl-10"
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Default password is <strong>Password123</strong>. You can change it anytime in your Profile.
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                By creating an account, you agree to BookIt!’s{' '}
+                <Link to="/terms" className="font-medium text-primary underline">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" className="font-medium text-primary underline">
+                  Privacy Policy
+                </Link>
+                .
               </p>
             </div>
 

@@ -88,3 +88,26 @@ With the local server running (`npm run dev`), regenerate all 90 device screensh
 ```bash
 npm run screenshots:store
 ```
+
+---
+
+## App Store & Google Play Submission Selection Guide (2026 Compliance)
+
+### 1. Screenshot Count & Curation Rules
+- **Google Play Store (Max 8 per device type):** Upload screenshots `01_Browse_Directory.png` through `08_Dashboard_Availability.png` (or `01`–`03`, `06`–`10`) representing the public customer booking flow and business owner schedule management.
+- **Apple App Store Connect (Max 10 per device size):** Upload screenshots `01_Browse_Directory.png` through `10_Dashboard_Team.png`.
+- **Internal Governance Captures (`13_Master_Console.png`, `14_Immutable_Audit_Trail.png`, `15_Platform_Simulator.png`):** Reserved for internal enterprise QA documentation (`docs/BOOKIT_PLATFORM_QA_GUIDE.md`). **Do not upload screens 13–15 to public consumer store listings** (Apple Guideline 2.3.3 — accurate consumer representation).
+
+### 2. Mandatory Store Review Notes & Declarations
+- **Apple App Store Review Notes (Guideline 3.1.3(e) & 5.1.1(v)):**
+  - **Real-World Physical Services (3.1.3(e)):** All ZAR (`R`) rates displayed in BookIt! are for real-world, in-person appointments (medical consultations, haircuts, mechanical servicing, dental hygiene, spa treatments, fitness sessions) paid in person at the physical business premises. No digital goods or in-app charges exist.
+  - **In-App Account Deletion (5.1.1(v)):** Available at **Profile (`/profile`) → Delete my account** (`DELETE /api/auth/account`), which permanently deletes the user account, cancels upcoming bookings, releases slots, and anonymizes historical audit/booking PII.
+  - **Demo Reviewer Credentials:**
+    - Customer Account: `sipho@bookit.com` / `Password123`
+    - Business Admin Account: `admin@bookit.com` / `Password123`
+- **Google Play Console Declarations (API 36 & Health Apps Policy):**
+  - **Target SDK:** Android 16 (`targetSdkVersion: 36`) with 16 KB page size support (`app.json`).
+  - **Web Account Deletion URL (Data Safety):** `https://bookit-production-236d981c.up.railway.app/privacy#delete-account`
+  - **Health Apps Declaration:** Declare under *"Healthcare services and management → Medical appointment scheduling"*.
+  - **Photo & Video Permissions:** `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` are explicitly blocked in `app.json`; image uploads use the Android System Photo Picker.
+

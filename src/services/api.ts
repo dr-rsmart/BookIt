@@ -50,6 +50,22 @@ export class ApiError extends Error {
 type SessionHandler = (code: SessionErrorCode, message: string) => void;
 let sessionHandler: SessionHandler | null = null;
 let suppressUnauthenticated = false;
+let bearerToken: string | null = null;
+
+const API_BASE_URL =
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as any).env &&
+    ((import.meta as any).env.VITE_API_BASE_URL ||
+      (import.meta as any).env.EXPO_PUBLIC_API_URL)) ||
+  '';
+
+export function setAuthBearerToken(token: string | null): void {
+  bearerToken = token;
+}
+
+export function getAuthBearerToken(): string | null {
+  return bearerToken;
+}
 
 export function registerSessionHandler(handler: SessionHandler | null): void {
   sessionHandler = handler;
@@ -69,11 +85,15 @@ function notifySessionError(code: SessionErrorCode, message: string): void {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { headers: optionHeaders, ...requestOptions } = options;
-  const res = await fetch(`/api${path}`, {
+  const authHeaders: Record<string, string> = bearerToken
+    ? { Authorization: `Bearer ${bearerToken}` }
+    : {};
+  const res = await fetch(`${API_BASE_URL}/api${path}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(optionHeaders || {}),
+      ...authHeaders,
+      ...((optionHeaders as Record<string, string>) || {}),
     },
     ...requestOptions,
   });
@@ -150,6 +170,20 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    request<{ success: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteAccount: (data: { password: string; reason?: string }) =>
+    request<{
+      success: boolean;
+      message: string;
+      cancelledBookingsCount: number;
+    }>('/auth/account', {
+      method: 'DELETE',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ── Providers API ──
@@ -182,6 +216,21 @@ export const providersApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+  report: (
+    id: string,
+    data: {
+      reason: string;
+      category?: 'inappropriate' | 'fraudulent' | 'impersonation' | 'medical_safety' | 'other';
+      reporterEmail?: string;
+    },
+  ) =>
+    request<{ success: boolean; message: string }>(
+      `/providers/${encodeURIComponent(id)}/report`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    ),
 };
 
 // ── Services API ──

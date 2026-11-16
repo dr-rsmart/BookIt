@@ -117,11 +117,14 @@ async function generateGraphicsAssets(browser) {
       <body><img src="${iconDataUri}" alt="BookIt! Icon" /></body>
     </html>
   `);
-  await icon512.screenshot({ path: path.join(graphicsDir, 'app-icon-512x512.png') });
+  await icon512.screenshot({
+    path: path.join(graphicsDir, 'app-icon-512x512.png'),
+    omitBackground: false,
+  });
   await icon512.close();
   console.log('  ✅ Exported store-assets/graphics/app-icon-512x512.png (512x512)');
 
-  // 2. Apple App Store 1024x1024 App Icon
+  // 2. Apple App Store 1024x1024 App Icon (opaque background, no transparency)
   const icon1024 = await browser.newPage({
     viewport: { width: 1024, height: 1024 },
     deviceScaleFactor: 1,
@@ -146,7 +149,10 @@ async function generateGraphicsAssets(browser) {
       <body><img src="${iconDataUri}" alt="BookIt! Icon 1024" /></body>
     </html>
   `);
-  await icon1024.screenshot({ path: path.join(graphicsDir, 'app-icon-1024x1024.png') });
+  await icon1024.screenshot({
+    path: path.join(graphicsDir, 'app-icon-1024x1024.png'),
+    omitBackground: false,
+  });
   await icon1024.close();
   console.log('  ✅ Exported store-assets/graphics/app-icon-1024x1024.png (1024x1024)');
 

@@ -12,6 +12,7 @@
  */
 
 import { Router } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import prisma from '../prisma.js';
 import { logger } from '../logger.js';
@@ -27,15 +28,19 @@ import {
   loginSchema,
   registerSchema,
   changePasswordSchema,
+  deleteAccountSchema,
+  resetPasswordTokenSchema,
 } from '../validation.js';
 import { logAudit, getClientIp } from '../audit.js';
-import { DEFAULT_PASSWORD, isDefaultPasswordHash } from '../passwords.js';
+import { isDefaultPasswordHash } from '../passwords.js';
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS, getAuthToken } from '../authSession.js';
-import { disconnectUserClients } from '../sse.js';
+import { disconnectUserClients, broadcastEvent } from '../sse.js';
+import { businessNow } from '../timezone.js';
 import {
   badRequest,
   unauthorized,
   duplicateRecord,
+  conflictError,
   internalError,
   sendError,
 } from '../errorResponse.js';
@@ -114,35 +119,6 @@ router.post('/login', loginRateLimit, validate(loginSchema), async (req, res) =>
           where: { id: rescued[0].id },
           include: { ownedProviders: { take: 1 } },
         });
-      }
-    }
-
-    // ── Self-healing for team members in Professional directory (TimeTrack standard) ──
-    // If a professional was created with an email but their User login record
-    // was missing (the exact "they're on the team roster but can't log in" issue),
-    // atomically auto-provision their User account with DEFAULT_PASSWORD ("Password123")
-    // so they can log in immediately.
-    if (!user) {
-      const pro = await prisma.professional.findFirst({
-        where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
-        include: { provider: true },
-      });
-      if (pro) {
-        const defaultHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-        user = await prisma.user.create({
-          data: {
-            email: normalizedEmail,
-            fullName: pro.name,
-            role: 'employee',
-            providerId: pro.providerId,
-            passwordHash: defaultHash,
-            mustChangePassword: true,
-          },
-          include: { ownedProviders: { take: 1 } },
-        });
-        logger.info(
-          `[auth] Auto-provisioned User login for professional "${pro.name}" (${normalizedEmail})`,
-        );
       }
     }
 
@@ -234,7 +210,10 @@ router.post('/register', loginRateLimit, validate(registerSchema), async (req, r
       return duplicateRecord(res, 'Account', 'email');
     }
 
-    const effectivePassword = (password && String(password).trim()) || DEFAULT_PASSWORD;
+    const effectivePassword = String(password).trim();
+    if (effectivePassword.length < 6) {
+      return badRequest(res, 'Password must be at least 6 characters.');
+    }
     const passwordHash = await bcrypt.hash(effectivePassword, 10);
     const derivedName =
       (fullName && String(fullName).trim()) ||
@@ -489,7 +468,7 @@ router.post('/forgot-password', loginRateLimit, async (req, res) => {
       return badRequest(res, 'Email address is required.');
     }
 
-    let user = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email },
       include: {
         provider: {
@@ -498,44 +477,34 @@ router.post('/forgot-password', loginRateLimit, async (req, res) => {
       },
     });
 
-    let pro = null;
-    if (!user) {
-      pro = await prisma.professional.findFirst({
-        where: { email: { equals: email, mode: 'insensitive' } },
-        include: {
-          provider: {
-            include: { owner: true },
-          },
-        },
-      });
-      if (pro) {
-        // Auto-provision user account so reset works
-        const defaultHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-        user = await prisma.user.create({
-          data: {
-            email,
-            fullName: pro.name,
-            role: 'employee',
-            providerId: pro.providerId,
-            passwordHash: defaultHash,
-            mustChangePassword: true,
-          },
+    const pro = !user
+      ? await prisma.professional.findFirst({
+          where: { email: { equals: email, mode: 'insensitive' } },
           include: {
             provider: {
               include: { owner: true },
             },
           },
-        });
-      }
+        })
+      : null;
+
+    if (user) {
+      const rawResetToken = crypto.randomBytes(24).toString('hex');
+      const resetTokenHash = crypto.createHash('sha256').update(rawResetToken).digest('hex');
+      const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { resetTokenHash, resetTokenExpiresAt },
+      });
     }
 
     const provider = user?.provider || pro?.provider || null;
     const adminEmail =
       provider?.owner?.email ||
       provider?.ownerEmail ||
-      (user?.role === 'master' ? 'master@smartpatel.co.za' : 'admin@bookit.com');
+      (user?.role === 'master' ? 'master@smartpatel.co.za' : 'support@bookit.co.za');
     const adminName =
-      provider?.owner?.fullName || provider?.primaryContactName || 'Business Administrator';
+      provider?.owner?.fullName || provider?.primaryContactName || 'BookIt! Support & Admin';
     const providerName = provider?.name || 'BookIt!';
 
     logAudit({
@@ -545,16 +514,15 @@ router.post('/forgot-password', loginRateLimit, async (req, res) => {
       actorId: user?.id ?? 'unknown',
       actorEmail: email,
       actorRole: user?.role ?? 'unknown',
-      justification: 'Self-service forgot password — directed to contact business administrator',
+      justification: 'Self-service password recovery requested',
       ipAddress: getClientIp(req),
       providerId: user?.providerId ?? null,
     });
 
     return res.json({
       success: true,
-      message: adminEmail
-        ? `Please reach out to your business administrator (${adminEmail}) to reset your password.`
-        : 'Please reach out to your business administrator to reset your password.',
+      message:
+        'If an account exists for this email address, password recovery instructions have been recorded. For workspace staff accounts, you may also contact your business administrator.',
       adminEmail,
       adminName,
       providerName,
@@ -564,5 +532,254 @@ router.post('/forgot-password', loginRateLimit, async (req, res) => {
     return internalError(res, 'requesting password reset');
   }
 });
+
+// ── POST /reset-password (token-based password reset) ──
+router.post(
+  '/reset-password',
+  loginRateLimit,
+  validate(resetPasswordTokenSchema),
+  async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(String(token).trim())
+        .digest('hex');
+
+      const user = await prisma.user.findFirst({
+        where: {
+          resetTokenHash: tokenHash,
+          resetTokenExpiresAt: { gt: new Date() },
+        },
+      });
+
+      if (!user) {
+        return badRequest(res, 'This password reset link is invalid or has expired.');
+      }
+
+      const passwordHash = await bcrypt.hash(String(newPassword), 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          mustChangePassword: false,
+          resetTokenHash: null,
+          resetTokenExpiresAt: null,
+          pwdEpoch: { increment: 1 },
+        },
+      });
+
+      invalidateLiveRoleCache(user.id);
+      disconnectUserClients(user.id);
+
+      logAudit({
+        entity: 'User',
+        entityId: user.id,
+        action: 'password_reset_completed',
+        actorId: user.id,
+        actorEmail: user.email,
+        actorRole: user.role,
+        ipAddress: getClientIp(req),
+        providerId: user.providerId,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Your password has been reset. You can now log in with your new password.',
+      });
+    } catch (err) {
+      logger.error({ err }, '[auth] Reset password error:');
+      return internalError(res, 'resetting password');
+    }
+  },
+);
+
+// ── DELETE /account (In-App Account & Personal Data Deletion — Apple 5.1.1(v) & Google Play) ──
+router.delete(
+  '/account',
+  requireAuth,
+  validate(deleteAccountSchema),
+  async (req, res) => {
+    try {
+      const authUser = req.authUser!;
+      if (authUser.role === 'master' || authUser.originalRole === 'master') {
+        return badRequest(
+          res,
+          'Platform Master operator accounts cannot be deleted via self-service.',
+        );
+      }
+
+      const { password, reason } = req.body;
+      const user = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: { ownedProviders: true },
+      });
+
+      if (!user || !user.passwordHash) {
+        return unauthorized(res, 'Account not found.');
+      }
+
+      const passwordMatches = await bcrypt.compare(String(password), user.passwordHash);
+      if (!passwordMatches) {
+        return badRequest(res, 'Current password is incorrect.');
+      }
+
+      const { dateStr: today } = businessNow();
+      const ownedProviderIds = user.ownedProviders.map((p) => p.id);
+
+      if (ownedProviderIds.length > 0) {
+        const activeBusinessBookings = await prisma.booking.count({
+          where: {
+            providerId: { in: ownedProviderIds },
+            date: { gte: today },
+            status: { in: ['pending', 'confirmed'] },
+            NOT: { customerId: user.id },
+          },
+        });
+        if (activeBusinessBookings > 0) {
+          return conflictError(
+            res,
+            'Your business has upcoming confirmed or pending customer appointments. Please cancel or complete them before deleting your business owner account.',
+          );
+        }
+      }
+
+      const { cancelledBookingsCount, releasedSlots } = await prisma.$transaction(async (tx) => {
+        // 1. Find all bookings placed by this customer
+        const customerBookings = await tx.booking.findMany({
+          where: {
+            OR: [
+              { customerId: user.id },
+              { customerEmail: { equals: user.email, mode: 'insensitive' } },
+            ],
+          },
+        });
+
+        const activeCustomerBookings = customerBookings.filter(
+          (b) => b.status === 'pending' || b.status === 'confirmed',
+        );
+        const slotIdsToRelease = activeCustomerBookings
+          .map((b) => b.slotId)
+          .filter((id): id is string => Boolean(id));
+
+        const slotsToBroadcast = slotIdsToRelease.length
+          ? await tx.slot.findMany({ where: { id: { in: slotIdsToRelease } } })
+          : [];
+
+        if (slotIdsToRelease.length > 0) {
+          await tx.slot.updateMany({
+            where: { id: { in: slotIdsToRelease } },
+            data: { status: 'open', bookingId: null },
+          });
+        }
+
+        // Cancel active customer bookings and scrub PII across all historical bookings
+        for (const booking of customerBookings) {
+          const nextStatus =
+            booking.status === 'pending' || booking.status === 'confirmed'
+              ? 'cancelled'
+              : booking.status;
+          await tx.booking.update({
+            where: { id: booking.id },
+            data: {
+              status: nextStatus,
+              customerId: null,
+              customerName: 'Deleted User',
+              customerEmail: 'deleted@bookit.invalid',
+              customerPhone: '',
+              notes: '',
+            },
+          });
+        }
+
+        // 2. Scrub PII from AuditLog rows created by this user
+        await tx.auditLog.updateMany({
+          where: {
+            OR: [
+              { actorId: user.id },
+              { actorEmail: { equals: user.email, mode: 'insensitive' } },
+            ],
+          },
+          data: {
+            actorEmail: 'deleted@bookit.invalid',
+            ipAddress: null,
+          },
+        });
+
+        // 3. Remove any staff email link on Professional records
+        await tx.professional.updateMany({
+          where: { email: { equals: user.email, mode: 'insensitive' } },
+          data: { email: null },
+        });
+
+        // 4. Delete owned providers (if any, verified above to have 0 upcoming customer bookings)
+        if (ownedProviderIds.length > 0) {
+          await tx.provider.deleteMany({
+            where: { id: { in: ownedProviderIds } },
+          });
+        }
+
+        // 5. Permanently delete the User record
+        await tx.user.delete({
+          where: { id: user.id },
+        });
+
+        // 6. Record anonymized erasure audit entry
+        await tx.auditLog.create({
+          data: {
+            entity: 'User',
+            entityId: user.id,
+            action: 'account_deleted',
+            actorId: 'deleted',
+            actorEmail: 'deleted@bookit.invalid',
+            actorRole: user.role,
+            justification: reason
+              ? `Self-service account deletion (${reason})`
+              : 'Self-service account & personal data deletion (POPIA / Apple 5.1.1(v) / Google Play)',
+            providerId: null,
+          },
+        });
+
+        return {
+          cancelledBookingsCount: activeCustomerBookings.length,
+          releasedSlots: slotsToBroadcast,
+        };
+      });
+
+      invalidateLiveRoleCache(user.id);
+      disconnectUserClients(user.id);
+
+      for (const slot of releasedSlots) {
+        broadcastEvent(
+          'slot:updated',
+          {
+            slot: {
+              id: slot.id,
+              provider_id: slot.providerId,
+              status: 'open',
+              booking_id: null,
+              date: slot.date,
+              start_time: slot.startTime,
+              end_time: slot.endTime,
+            },
+          },
+          { providerId: slot.providerId, public: true },
+        );
+      }
+
+      res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+      res.clearCookie('tt_token', { path: '/' });
+
+      return res.json({
+        success: true,
+        message: 'Your account and personal data have been permanently deleted.',
+        cancelledBookingsCount,
+      });
+    } catch (err) {
+      logger.error({ err }, '[auth] Delete account error:');
+      return internalError(res, 'deleting account');
+    }
+  },
+);
 
 export default router;

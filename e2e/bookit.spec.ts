@@ -199,4 +199,42 @@ test.describe('BookIt! End-to-End Suite', () => {
     await expect(mobileBottomNav).toBeHidden();
     await checkNoHorizontalOverflow();
   });
+
+  test('7. App Store & Google Play Compliance UI: verifies Privacy, Terms, Medical Disclaimer, UGC Report, and Account Deletion UI', async ({
+    page,
+  }) => {
+    // 1. Privacy Policy & Web Account Deletion Section
+    await page.goto('/privacy');
+    await expect(page.locator('h1')).toContainText(/Privacy Policy/i);
+    await expect(page.locator('text=Account & Personal Data Deletion')).toBeVisible();
+
+    // 2. Terms of Service & Medical/In-Person Payment Disclaimers
+    await page.goto('/terms');
+    await expect(page.locator('h1')).toContainText(/Terms of Service/i);
+    await expect(page.locator('text=Medical & Healthcare Scheduling Disclaimer')).toBeVisible();
+    await expect(page.locator('text=Pricing & In-Person Payment Terms')).toBeVisible();
+
+    // 3. Doctor Provider Profile: Healthcare Notice, In-person payment notice & UGC Report button
+    await page.goto('/');
+    const sandtonCard = page.locator('a[href^="/providers/"]', {
+      hasText: 'Sandton Medical & Family Clinic',
+    });
+    await sandtonCard.first().click();
+    await expect(page.locator('text=Healthcare & Medical Scheduling Notice')).toBeVisible();
+    await expect(page.locator('text=In-person payment only')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Report this business listing/i }),
+    ).toBeVisible();
+
+    // 4. Customer Account Profile: In-App Account Deletion button (Apple 5.1.1(v) & Google Play)
+    await page.goto('/login?returnTo=/profile');
+    await page.fill('#email', 'sipho@bookit.com');
+    await page.fill('#password', 'Password123');
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/auth/login') && r.status() === 200),
+      page.click('button[type="submit"]'),
+    ]);
+    await page.waitForURL(/\/profile/, { timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Delete my account/i })).toBeVisible();
+  });
 });

@@ -1,9 +1,9 @@
 /**
  * Login Page (`D_` and `w_` in Base44 + TimeTrack session banners)
  * ---------------------------------------------------------------
- * Reproduces the exact Base44 auth shell (icon badge, Welcome back,
- * Continue with Google button, Email & Password inputs, Forgot password link)
- * with TimeTrack's session revocation & suspension banners.
+ * Reproduces the Base44 first-party email/password auth shell (icon badge,
+ * Welcome back, Email & Password inputs, Forgot password link) with
+ * TimeTrack's session revocation & suspension banners.
  */
 
 import { useState, type FormEvent } from 'react';

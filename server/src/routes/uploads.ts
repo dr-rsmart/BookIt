@@ -11,21 +11,37 @@ import { badRequest } from '../errorResponse.js';
 
 const router = Router();
 
+const ALLOWED_DATA_URI_PREFIXES = [
+  'data:image/jpeg;base64,',
+  'data:image/jpg;base64,',
+  'data:image/png;base64,',
+  'data:image/webp;base64,',
+  'data:image/svg+xml;base64,',
+];
+
 router.post('/', requireAuth, async (req, res) => {
   const { dataUrl, url } = req.body || {};
-  const resolved = typeof dataUrl === 'string' ? dataUrl : typeof url === 'string' ? url : '';
+  const resolved = typeof dataUrl === 'string' ? dataUrl.trim() : typeof url === 'string' ? url.trim() : '';
   if (!resolved) {
     return badRequest(res, 'Image dataUrl or url is required.');
   }
 
+  const isHttpsUrl = resolved.startsWith('https://');
+  const isAllowedDataUri = ALLOWED_DATA_URI_PREFIXES.some((prefix) =>
+    resolved.toLowerCase().startsWith(prefix),
+  );
+
   // Validate allowed format (HTTPS CDN URL or permitted image data URI)
-  if (resolved.startsWith('http://') || (!resolved.startsWith('https://') && !resolved.startsWith('data:image/'))) {
-    return badRequest(res, 'Uploaded image must be an HTTPS URL or valid image data URI (JPEG, PNG, WebP).');
+  if (!isHttpsUrl && !isAllowedDataUri) {
+    return badRequest(
+      res,
+      'Uploaded image must be an HTTPS URL or valid image data URI (JPEG, PNG, WebP).',
+    );
   }
 
-  // Enforce 5MB payload limit on inline data URLs
-  if (resolved.startsWith('data:image/') && resolved.length > 5 * 1024 * 1024) {
-    return badRequest(res, 'Image exceeds maximum 5MB size limit.');
+  // Enforce 2MB payload limit on inline data URLs to prevent mobile OOM on directory lists
+  if (isAllowedDataUri && resolved.length > 2 * 1024 * 1024) {
+    return badRequest(res, 'Image exceeds maximum 2MB size limit. Please choose a smaller image.');
   }
 
   return res.json({ file_url: resolved });

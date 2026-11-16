@@ -14,6 +14,7 @@ import { serializeProvider, DEFAULT_WORKING_HOURS } from '../serializers.js';
 import { logAudit, getClientIp, computeChanges } from '../audit.js';
 import { broadcastEvent } from '../sse.js';
 import { parsePagination, setPageHeaders } from '../pagination.js';
+import { validate, reportProviderSchema } from '../validation.js';
 import {
   badRequest,
   notFound,
@@ -289,5 +290,47 @@ async function handleUpdateProvider(req: Request, res: Response) {
 
 router.put('/:id', requireAuth, handleUpdateProvider);
 router.patch('/:id', requireAuth, handleUpdateProvider);
+
+// ── POST /api/providers/:id/report (UGC Trust & Safety Moderation — Apple 1.2 & Google Play) ──
+router.post(
+  '/:id/report',
+  optionalAuth,
+  validate(reportProviderSchema),
+  async (req, res) => {
+    try {
+      const id = String(req.params.id);
+      const provider = await prisma.provider.findUnique({ where: { id } });
+      if (!provider) return notFound(res, 'Business');
+
+      const { reason, category, reporterEmail } = req.body;
+      const actorId = req.authUser?.id || 'anonymous';
+      const actorEmail =
+        req.authUser?.email ||
+        (reporterEmail ? String(reporterEmail).toLowerCase().trim() : 'anonymous@bookit.co.za');
+      const actorRole = req.authUser?.role || 'customer';
+
+      await logAudit({
+        entity: 'Provider',
+        entityId: provider.id,
+        action: 'ugc_report',
+        actorId,
+        actorEmail,
+        actorRole,
+        ipAddress: getClientIp(req),
+        providerId: provider.id,
+        justification: `[UGC Report: ${category}] ${String(reason).trim()}`,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message:
+          'Thank you. Your report has been logged for our Trust & Safety moderation team.',
+      });
+    } catch (err) {
+      logger.error({ err }, '[providers] Report error:');
+      return internalError(res, 'reporting business listing');
+    }
+  },
+);
 
 export default router;

@@ -48,6 +48,24 @@ export function buildOpenApiDocument() {
           responses: { '200': { description: 'CurrentUser' }, '401': { description: 'Unauthenticated' } },
         },
       },
+      '/auth/account': {
+        delete: {
+          summary: 'Permanently delete user account, cancel upcoming bookings, release slots, and scrub PII (Apple 5.1.1(v) & Google Play)',
+          responses: { '200': { description: 'Account deleted' }, '400': { description: 'Invalid password' }, '409': { description: 'Active business bookings conflict' } },
+        },
+      },
+      '/auth/reset-password': {
+        post: {
+          summary: 'Complete token-based password reset',
+          responses: { '200': { description: 'Password reset' }, '400': { description: 'Invalid or expired token' } },
+        },
+      },
+      '/providers/{id}/report': {
+        post: {
+          summary: 'Report a business listing for Trust & Safety moderation (Apple Guideline 1.2 & Google Play UGC)',
+          responses: { '201': { description: 'Report logged' }, '404': { description: 'Business not found' } },
+        },
+      },
       '/providers': {
         get: {
           summary: 'List published South African service providers with search & category filters',

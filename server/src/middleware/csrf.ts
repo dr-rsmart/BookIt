@@ -6,9 +6,23 @@ import type { Request, Response, NextFunction } from 'express';
 import config from '../config.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const MOBILE_SCHEME_ORIGINS = new Set([
+  'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
+  'https://localhost',
+]);
 
 export function csrfOriginCheck(req: Request, res: Response, next: NextFunction): void {
   if (SAFE_METHODS.has(req.method)) {
+    next();
+    return;
+  }
+
+  // Requests authenticated via explicit Authorization: Bearer header (such as
+  // Expo / React Native mobile clients) are not ambient-cookie CSRF vectors.
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     next();
     return;
   }
@@ -26,6 +40,9 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (
     allowedOrigins.includes(origin) ||
     origin === hostOrigin ||
+    MOBILE_SCHEME_ORIGINS.has(origin) ||
+    origin.startsWith('bookit://') ||
+    origin.startsWith('exp://') ||
     (!config.isProduction && origin.startsWith('http://localhost:')) ||
     (!config.isProduction && origin.startsWith('http://127.0.0.1:'))
   ) {

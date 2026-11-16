@@ -15,7 +15,12 @@ import {
   Phone,
   Mail,
   Globe,
+  HeartPulse,
+  Banknote,
+  Flag,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   providersApi,
   servicesApi,
@@ -24,7 +29,7 @@ import {
   type ServiceRecord,
   type ProfessionalRecord,
 } from '../services/api';
-import { Badge, Button, Skeleton } from '../components/ui';
+import { Badge, Button, DialogModal, Input, Label, Select, Textarea, Skeleton } from '../components/ui';
 import {
   getCategoryMeta,
   formatDuration,
@@ -40,6 +45,13 @@ export default function ProviderDetail() {
   const [services, setServices] = useState<ServiceRecord[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState<
+    'inappropriate' | 'fraudulent' | 'impersonation' | 'medical_safety' | 'other'
+  >('inappropriate');
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -102,6 +114,8 @@ export default function ProviderDetail() {
   }
 
   const { Icon, label } = getCategoryMeta(provider.category);
+  const isHealthcareProvider =
+    provider.category === 'Doctor' || provider.category === 'Dentist';
   const fullAddress = [provider.street, provider.city, provider.postcode, provider.country]
     .filter(Boolean)
     .join(', ');
@@ -152,6 +166,26 @@ export default function ProviderDetail() {
           <CalendarPlus className="mr-2 h-4 w-4" /> Book an appointment
         </Button>
       </div>
+
+      {isHealthcareProvider && (
+        <div
+          role="note"
+          className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs leading-relaxed text-muted-foreground sm:text-sm"
+        >
+          <HeartPulse className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div>
+            <p className="font-semibold text-foreground">
+              Healthcare & Medical Scheduling Notice
+            </p>
+            <p className="mt-0.5">
+              BookIt! facilitates appointment scheduling only and does not provide medical advice,
+              diagnosis, or emergency triage. Independent practitioners are responsible for their
+              own clinical services and HPCSA registration.{' '}
+              <strong>In a medical emergency, call 10177 or 112 immediately.</strong>
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8 grid gap-8 sm:mt-10 sm:gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-8 sm:space-y-10">
@@ -325,8 +359,106 @@ export default function ProviderDetail() {
               )}
             </ul>
           </div>
+
+          <div className="rounded-3xl border border-border bg-card p-5 text-xs text-muted-foreground sm:p-6">
+            <div className="flex items-center gap-2 font-medium text-foreground">
+              <Banknote className="h-4 w-4 text-primary" />
+              <span>In-person payment only</span>
+            </div>
+            <p className="mt-1.5 leading-relaxed">
+              Displayed ZAR rates are paid directly at the business venue after your appointment. No
+              online payment or booking fee is charged in BookIt!.
+            </p>
+            <div className="mt-4 border-t border-border/60 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setReportReason('');
+                  setReportOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+              >
+                <Flag className="h-3.5 w-3.5" /> Report this business listing
+              </button>
+            </div>
+          </div>
         </aside>
       </div>
+
+      <DialogModal
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title={`Report ${provider.name}`}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setReportOpen(false)}
+              disabled={reporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={reporting || reportReason.trim().length < 3}
+              onClick={async () => {
+                setReporting(true);
+                try {
+                  const res = await providersApi.report(provider.id, {
+                    category: reportCategory,
+                    reason: reportReason.trim(),
+                  });
+                  toast.success(res.message);
+                  setReportOpen(false);
+                } catch (err: any) {
+                  toast.error(err.message || 'Could not submit report');
+                } finally {
+                  setReporting(false);
+                }
+              }}
+            >
+              {reporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit report
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4 text-sm">
+          <p className="text-xs text-muted-foreground">
+            Help keep BookIt! safe and accurate. Our Trust & Safety team reviews reported listings
+            within 24 hours.
+          </p>
+          <div>
+            <Label htmlFor="report-category">Issue category</Label>
+            <Select
+              id="report-category"
+              value={reportCategory}
+              onChange={(e) => setReportCategory(e.target.value as any)}
+              className="mt-1.5"
+            >
+              <option value="inappropriate">Inappropriate or offensive content</option>
+              <option value="fraudulent">Fraudulent or misleading business</option>
+              <option value="impersonation">Impersonation of a business or practitioner</option>
+              <option value="medical_safety">Unlicensed healthcare / medical safety concern</option>
+              <option value="other">Other policy violation</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="report-reason">Details</Label>
+            <Textarea
+              id="report-reason"
+              rows={3}
+              required
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder="Describe why you are reporting this listing..."
+              className="mt-1.5"
+            />
+          </div>
+        </div>
+      </DialogModal>
 
       {/* Mobile Floating Quick-Book Bar (sits above mobile bottom nav) */}
       <div className="fixed bottom-16 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-2.5 backdrop-blur-xl md:hidden">
