@@ -91,9 +91,18 @@ if (isNaN(PORT) || PORT < 1 || PORT > 65535) {
 }
 
 const rawCorsOrigin = isProduction()
-  ? process.env.CORS_ORIGIN ||
-    (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '') ||
-    requireEnv('CORS_ORIGIN')
+  ? Array.from(
+      new Set(
+        [
+          ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : []),
+          ...(process.env.RAILWAY_PUBLIC_DOMAIN ? [`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`] : []),
+          'https://book-it.tech',
+          'https://www.book-it.tech',
+        ]
+          .map((o) => o.trim())
+          .filter(Boolean),
+      ),
+    ).join(',')
   : process.env.CORS_ORIGIN || 'http://localhost:5175,http://localhost:5173';
 const CORS_ORIGIN = validateCorsOrigin(rawCorsOrigin);
 
