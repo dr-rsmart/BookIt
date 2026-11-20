@@ -18,6 +18,8 @@ const TIMETRACK_PROFILE_DIR = 'C:/Users/Ricardo Smart/Desktop/Live Projects/Time
 const LOCAL_PROFILE_DIR = path.resolve(ROOT, '.playwright-google-profile');
 const PROFILE_DIR = fs.existsSync(TIMETRACK_PROFILE_DIR) ? TIMETRACK_PROFILE_DIR : LOCAL_PROFILE_DIR;
 const DEV_ID = '8121995548332442173';
+const APP_ID = '4973812397820210439';
+const ALPHA_TRACK_ID = '4700976707723068710';
 
 const RELEASE_NOTES = [
   '<en-ZA>',
@@ -45,7 +47,7 @@ async function run() {
 
   const page = context.pages()[0] || (await context.newPage());
   await page
-    .goto(`https://play.google.com/console/u/0/developers/${DEV_ID}/app-list`, {
+    .goto(`https://play.google.com/console/u/0/developers/${DEV_ID}/app/${APP_ID}/publishing`, {
       waitUntil: 'domcontentloaded',
       timeout: 45000,
     })
