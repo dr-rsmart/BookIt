@@ -40,7 +40,7 @@
     "production": {
       "ios": {
         "appleId": "ricardovsmart@gmail.com",
-        "ascAppId": "BOOKIT_ASC_APP_ID",
+        "ascAppId": "6837258410",
         "ascApiKeyPath": "./asc-api-key.p8",
         "ascApiKeyIssuerId": "910ea587-6238-4237-892d-8b8adf531d71",
         "ascApiKeyId": "T7F5PP484B"
