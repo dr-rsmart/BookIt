@@ -11,13 +11,8 @@ import { badRequest } from '../errorResponse.js';
 
 const router = Router();
 
-const ALLOWED_DATA_URI_PREFIXES = [
-  'data:image/jpeg;base64,',
-  'data:image/jpg;base64,',
-  'data:image/png;base64,',
-  'data:image/webp;base64,',
-  'data:image/svg+xml;base64,',
-];
+const DATA_IMAGE_URI_REGEX = /^data:image\/[a-z0-9.+-]+(?:;[^,]+)*;base64,[a-z0-9+/=\s]+$/i;
+const MAX_DATA_URI_BYTES = 10 * 1024 * 1024; // 10MB base64 data URI ceiling
 
 router.post('/', requireAuth, async (req, res) => {
   const { dataUrl, url } = req.body || {};
@@ -26,22 +21,20 @@ router.post('/', requireAuth, async (req, res) => {
     return badRequest(res, 'Image dataUrl or url is required.');
   }
 
-  const isHttpsUrl = resolved.startsWith('https://');
-  const isAllowedDataUri = ALLOWED_DATA_URI_PREFIXES.some((prefix) =>
-    resolved.toLowerCase().startsWith(prefix),
-  );
+  const isHttpUrl = /^https?:\/\/\S+$/i.test(resolved);
+  const isAllowedDataUri = DATA_IMAGE_URI_REGEX.test(resolved);
 
-  // Validate allowed format (HTTPS CDN URL or permitted image data URI)
-  if (!isHttpsUrl && !isAllowedDataUri) {
+  // Validate allowed format (HTTP/HTTPS URL or permitted image data URI)
+  if (!isHttpUrl && !isAllowedDataUri) {
     return badRequest(
       res,
-      'Uploaded image must be an HTTPS URL or valid image data URI (JPEG, PNG, WebP).',
+      'Uploaded image must be an HTTPS URL or valid image data URI (JPEG, PNG, WebP, GIF, AVIF, SVG).',
     );
   }
 
-  // Enforce 2MB payload limit on inline data URLs to prevent mobile OOM on directory lists
-  if (isAllowedDataUri && resolved.length > 2 * 1024 * 1024) {
-    return badRequest(res, 'Image exceeds maximum 2MB size limit. Please choose a smaller image.');
+  // Enforce 10MB payload limit on inline data URLs
+  if (isAllowedDataUri && resolved.length > MAX_DATA_URI_BYTES) {
+    return badRequest(res, 'Image exceeds maximum 10MB size limit. Please choose a smaller image.');
   }
 
   return res.json({ file_url: resolved });

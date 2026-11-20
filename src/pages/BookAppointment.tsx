@@ -35,6 +35,7 @@ import {
   formatTime12,
   resolveCategoryTemplate,
   formatBookingMetadataBadges,
+  isSlotExpiredByCutoff,
 } from '../lib/utils';
 import { useSSE } from '../hooks/useSSE';
 import CategoryBookingIntake from '../components/booking/CategoryBookingIntake';
@@ -201,6 +202,14 @@ export default function BookAppointment() {
   const [slots, setSlots] = useState<SlotRecord[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotRecord | null>(null);
+  const [nowTick, setNowTick] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(new Date());
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const [customerDetails, setCustomerDetails] = useState({
     name: '',
@@ -324,10 +333,16 @@ export default function BookAppointment() {
         (s) =>
           !(
             (selectedProfessionalId && s.professional_id !== selectedProfessionalId) ||
-            (selectedServiceId && s.service_id && s.service_id !== selectedServiceId)
+            (selectedServiceId && s.service_id && s.service_id !== selectedServiceId) ||
+            isSlotExpiredByCutoff(
+              s.date,
+              s.start_time,
+              s.cutoff_minutes ?? provider?.slot_cutoff_minutes,
+              nowTick,
+            )
           ),
       ),
-    [slots, selectedProfessionalId, selectedServiceId],
+    [slots, selectedProfessionalId, selectedServiceId, provider?.slot_cutoff_minutes, nowTick],
   );
 
   if (loading) {

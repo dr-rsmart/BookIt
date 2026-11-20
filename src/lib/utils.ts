@@ -233,3 +233,43 @@ export function relativeTimeNotice(dateStr?: string | null, startTime?: string |
   const diffHours = Math.round(diffMinutes / 60);
   return diffHours < 24 ? `In ${diffHours} hours` : `In ${Math.round(diffHours / 24)} days`;
 }
+
+/**
+ * Determines whether an open availability slot has passed its booking cutoff threshold.
+ * Example: slot at 09:30 with cutoffMinutes = 15 disappears once current time is 09:16.
+ */
+export function isSlotExpiredByCutoff(
+  slotDate: string,
+  slotStartTime: string,
+  cutoffMinutes?: number | null,
+  now: Date = new Date(),
+): boolean {
+  const [sY, sM, sD] = String(slotDate || '')
+    .slice(0, 10)
+    .split('-')
+    .map(Number);
+  const [sH, sMin] = String(slotStartTime || '00:00')
+    .split(':')
+    .map(Number);
+
+  if (!sY || !sM || !sD) return false;
+
+  const slotStartMs = Date.UTC(sY, sM - 1, sD, sH || 0, sMin || 0, 0, 0);
+  const nowMs = Date.UTC(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    0,
+    0,
+  );
+  const remainingMinutes = Math.floor((slotStartMs - nowMs) / 60_000);
+  const cutoff = Math.max(0, Number(cutoffMinutes ?? 15) || 0);
+
+  if (cutoff === 0) {
+    return remainingMinutes <= 0;
+  }
+  return remainingMinutes < cutoff;
+}
+

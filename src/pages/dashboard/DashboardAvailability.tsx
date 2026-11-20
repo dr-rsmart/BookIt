@@ -30,6 +30,7 @@ import {
   formatDateHuman,
   formatTime12,
   resolveCategoryTemplate,
+  isSlotExpiredByCutoff,
   type CategoryTemplateSpec,
 } from '../../lib/utils';
 
@@ -37,16 +38,18 @@ const SLOT_LENGTHS = [15, 30, 45, 60, 90, 120];
 
 function SlotGenerator({
   providerId,
+  defaultCutoffMinutes = 15,
   team,
   services,
   template,
   onCreated,
 }: {
   providerId: string;
+  defaultCutoffMinutes?: number;
   team: ProfessionalRecord[];
   services: ServiceRecord[];
   template: CategoryTemplateSpec;
-  onCreated: () => void;
+  onCreated: (cutoffMinutes?: number) => void;
 }) {
   const [professionalId, setProfessionalId] = useState('');
   const [serviceId, setServiceId] = useState('any');
@@ -55,6 +58,7 @@ function SlotGenerator({
   const [endTime, setEndTime] = useState('13:00');
   const [slotLength, setSlotLength] = useState('30');
   const [repeatWeeks, setRepeatWeeks] = useState('1');
+  const [cutoffMinutes, setCutoffMinutes] = useState(() => String(defaultCutoffMinutes ?? 15));
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -179,6 +183,24 @@ function SlotGenerator({
             ))}
           </Select>
         </div>
+
+        <div className="sm:col-span-2">
+          <Label htmlFor="slot-cutoff">Disappear before start (minutes)</Label>
+          <Input
+            id="slot-cutoff"
+            type="number"
+            min="0"
+            max="1440"
+            value={cutoffMinutes}
+            onChange={(e) => setCutoffMinutes(e.target.value)}
+            placeholder="e.g. 15"
+            className="mt-2"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Open availability automatically falls away this many minutes before the slot starts
+            (e.g. 15 min means a 09:30 slot disappears at 09:16).
+          </p>
+        </div>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -194,6 +216,10 @@ function SlotGenerator({
               setMessage('The end time needs to be after the start time.');
               return;
             }
+            const parsedCutoff = Math.max(
+              0,
+              Math.min(1440, Math.round(Number(cutoffMinutes === '' ? 15 : cutoffMinutes) || 0)),
+            );
             setMessage('');
             setSubmitting(true);
 
@@ -205,6 +231,7 @@ function SlotGenerator({
               date: string;
               start_time: string;
               end_time: string;
+              cutoff_minutes: number;
               status: string;
             }> = [];
 
@@ -222,6 +249,7 @@ function SlotGenerator({
                   date: targetDate,
                   start_time: minutesToTime(cursor),
                   end_time: minutesToTime(cursor + stepMin),
+                  cutoff_minutes: parsedCutoff,
                   status: 'open',
                 });
               }
@@ -229,10 +257,10 @@ function SlotGenerator({
 
             try {
               await slotsApi.bulkCreate(items);
-              const msg = `${items.length} slot${items.length === 1 ? '' : 's'} added.`;
+              const msg = `${items.length} slot${items.length === 1 ? '' : 's'} added (${parsedCutoff}m cutoff).`;
               setMessage(msg);
               toast.success(msg);
-              onCreated();
+              onCreated(parsedCutoff);
             } catch (err: any) {
               toast.error(err.message || 'Could not create slots');
             } finally {
@@ -258,10 +286,18 @@ function SlotGenerator({
 }
 
 export default function DashboardAvailability() {
-  const { provider, loading } = useMyProvider();
+  const { provider, setProvider, loading } = useMyProvider();
   const [team, setTeam] = useState<ProfessionalRecord[]>([]);
   const [services, setServices] = useState<ServiceRecord[]>([]);
   const [slots, setSlots] = useState<SlotRecord[]>([]);
+  const [nowTick, setNowTick] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(new Date());
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const loadAll = useCallback(async (providerId: string) => {
     const [proRes, svcRes, slotRes] = await Promise.all([
@@ -296,14 +332,31 @@ export default function DashboardAvailability() {
     },
   );
 
+  const visibleSlots = useMemo(
+    () =>
+      slots.filter(
+        (slot) =>
+          !(
+            slot.status === 'open' &&
+            isSlotExpiredByCutoff(
+              slot.date,
+              slot.start_time,
+              slot.cutoff_minutes ?? provider?.slot_cutoff_minutes,
+              nowTick,
+            )
+          ),
+      ),
+    [slots, provider?.slot_cutoff_minutes, nowTick],
+  );
+
   const groupedByDate = useMemo(
     () =>
-      slots.reduce<Record<string, SlotRecord[]>>((acc, slot) => {
+      visibleSlots.reduce<Record<string, SlotRecord[]>>((acc, slot) => {
         acc[slot.date] = acc[slot.date] || [];
         acc[slot.date].push(slot);
         return acc;
       }, {}),
-    [slots],
+    [visibleSlots],
   );
 
   if (loading) {
@@ -316,7 +369,12 @@ export default function DashboardAvailability() {
 
   if (!provider) return <Navigate to="/dashboard" replace />;
 
-  const refresh = () => void loadAll(provider.id);
+  const refresh = (nextCutoff?: number) => {
+    if (typeof nextCutoff === 'number') {
+      setProvider({ ...provider, slot_cutoff_minutes: nextCutoff });
+    }
+    void loadAll(provider.id);
+  };
   const proName = (proId: string) => team.find((p) => p.id === proId)?.name || 'Unassigned';
   const template = resolveCategoryTemplate(provider.category, provider.template_id);
 
@@ -334,6 +392,7 @@ export default function DashboardAvailability() {
 
         <SlotGenerator
           providerId={provider.id}
+          defaultCutoffMinutes={provider.slot_cutoff_minutes ?? 15}
           team={team}
           services={services}
           template={template}
@@ -343,10 +402,10 @@ export default function DashboardAvailability() {
         <section>
           <div className="flex items-end justify-between gap-4">
             <h2 className="font-display text-xl text-foreground">Upcoming slots</h2>
-            <p className="text-sm text-muted-foreground">{slots.length} shown</p>
+            <p className="text-sm text-muted-foreground">{visibleSlots.length} shown</p>
           </div>
 
-          {slots.length === 0 ? (
+          {visibleSlots.length === 0 ? (
             <p className="mt-4 rounded-2xl border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
               No slots yet. Add some above and they’ll appear here straight away.
             </p>
@@ -375,6 +434,9 @@ export default function DashboardAvailability() {
                         </span>
                         <span className="text-muted-foreground">
                           {proName(slot.professional_id)} · {slot.status}
+                          {slot.status === 'open' && (slot.cutoff_minutes ?? 0) > 0
+                            ? ` · ${slot.cutoff_minutes}m cutoff`
+                            : ''}
                         </span>
                         {slot.status !== 'booked' && (
                           <ConfirmDialog

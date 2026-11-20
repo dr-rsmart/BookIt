@@ -60,7 +60,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
 app.use(csrfOriginCheck);
 

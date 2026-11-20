@@ -19,6 +19,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Loader2, Upload, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn, DAYS_OF_WEEK } from '../../lib/utils';
 import { uploadsApi } from '../../services/api';
 import type { WorkingHoursDay } from '../../../contracts';
@@ -441,8 +442,14 @@ export function ImageUpload({
               try {
                 const { file_url } = await uploadsApi.uploadFile(file);
                 onChange(file_url);
+                toast.success('Photo uploaded.');
+              } catch (err: any) {
+                toast.error(err?.message || 'Could not upload photo. Please try another image.');
               } finally {
                 setUploading(false);
+                if (fileRef.current) {
+                  fileRef.current.value = '';
+                }
               }
             }}
           />

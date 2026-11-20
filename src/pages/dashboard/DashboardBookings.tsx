@@ -11,6 +11,7 @@ import { useMyProvider } from '../../hooks/useMyProvider';
 import { useSSE } from '../../hooks/useSSE';
 import DashboardSubNav from '../../components/dashboard/DashboardSubNav';
 import BookingRow from '../../components/dashboard/BookingRow';
+import ManualBookingModal from '../../components/dashboard/ManualBookingModal';
 import { Spinner } from '../../components/ui';
 import { cn, resolveCategoryTemplate } from '../../lib/utils';
 
@@ -65,12 +66,20 @@ export default function DashboardBookings() {
     <div>
       <DashboardSubNav />
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-5 sm:py-10">
-        <h1 className="font-display text-2xl text-foreground sm:text-3xl">
-          {template.terminology.bookingsNavLabel}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-          Confirm, update stage, complete, remind or cancel — all from here.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+              {template.terminology.bookingsNavLabel}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+              Confirm, update stage, complete, remind or cancel — all from here.
+            </p>
+          </div>
+          <ManualBookingModal
+            provider={provider}
+            onCreated={() => void loadBookings(provider.id, tab)}
+          />
+        </div>
 
         <div className="no-scrollbar mt-5 flex snap-x gap-2 overflow-x-auto pb-1 sm:mt-6 sm:flex-wrap">
           {TABS.map((t) => (

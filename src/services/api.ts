@@ -314,10 +314,11 @@ export const slotsApi = {
       date: string;
       start_time: string;
       end_time: string;
+      cutoff_minutes?: number;
       status?: string;
     }>,
   ) =>
-    request<{ count: number }>('/slots/bulk', {
+    request<{ count: number; skippedCount?: number }>('/slots/bulk', {
       method: 'POST',
       body: JSON.stringify({ items }),
     }),
@@ -407,6 +408,7 @@ export interface MasterProviderItem {
   id: string;
   name: string;
   category: string;
+  templateId?: string;
   city: string;
   status: string;
   isActive: boolean;
@@ -460,6 +462,14 @@ export const masterApi = {
         body: JSON.stringify({ isActive }),
       },
     ),
+  updateProviderCategory: (id: string, category: string) =>
+    request<{ success: boolean; category: string; templateId: string; message: string }>(
+      `/master/providers/${encodeURIComponent(id)}/category`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ category, template_id: category }),
+      },
+    ),
   impersonate: async (providerId: string) => {
     const res = await request<{
       success: boolean;
@@ -501,14 +511,82 @@ export const masterApi = {
 };
 
 // ── File Upload Helper ──
+async function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function optimizeImageDataUrl(rawDataUrl: string, mimeType: string): Promise<string> {
+  if (
+    typeof document === 'undefined' ||
+    typeof Image === 'undefined' ||
+    mimeType.includes('svg')
+  ) {
+    return rawDataUrl;
+  }
+
+  return new Promise<string>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const MAX_DIM = 1600;
+        let { width, height } = img;
+        if (!width || !height) {
+          resolve(rawDataUrl);
+          return;
+        }
+        const needsResize = width > MAX_DIM || height > MAX_DIM;
+        const isLargePayload = rawDataUrl.length > 750 * 1024;
+        const isStandardMime =
+          mimeType === 'image/jpeg' ||
+          mimeType === 'image/png' ||
+          mimeType === 'image/webp';
+
+        if (!needsResize && !isLargePayload && isStandardMime) {
+          resolve(rawDataUrl);
+          return;
+        }
+
+        if (needsResize) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.max(1, Math.round(width * ratio));
+          height = Math.max(1, Math.round(height * ratio));
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(rawDataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const targetMime =
+          mimeType === 'image/png' && !isLargePayload ? 'image/png' : 'image/jpeg';
+        const compressed = canvas.toDataURL(targetMime, 0.84);
+        if (compressed && compressed.startsWith('data:image/')) {
+          resolve(compressed);
+          return;
+        }
+        resolve(rawDataUrl);
+      } catch {
+        resolve(rawDataUrl);
+      }
+    };
+    img.onerror = () => resolve(rawDataUrl);
+    img.src = rawDataUrl;
+  });
+}
+
 export const uploadsApi = {
   uploadFile: async (file: File): Promise<{ file_url: string }> => {
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('Failed to read image file'));
-      reader.readAsDataURL(file);
-    });
+    const rawDataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await optimizeImageDataUrl(rawDataUrl, (file.type || '').toLowerCase());
     return request<{ file_url: string }>('/uploads', {
       method: 'POST',
       body: JSON.stringify({ dataUrl }),

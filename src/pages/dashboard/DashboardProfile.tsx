@@ -11,6 +11,7 @@ import { providersApi } from '../../services/api';
 import { useMyProvider } from '../../hooks/useMyProvider';
 import DashboardSubNav from '../../components/dashboard/DashboardSubNav';
 import BusinessForm from '../../components/dashboard/BusinessForm';
+import ManualBookingModal from '../../components/dashboard/ManualBookingModal';
 import { Button, Switch, Spinner } from '../../components/ui';
 
 export default function DashboardProfile() {
@@ -40,13 +41,19 @@ export default function DashboardProfile() {
               This is what customers see — address, contact details and opening hours.
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="w-full rounded-full sm:w-auto"
-            onClick={() => navigate(`/providers/${provider.id}`)}
-          >
-            Preview public page
-          </Button>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <ManualBookingModal
+              provider={provider}
+              onCreated={() => navigate('/dashboard/bookings')}
+            />
+            <Button
+              variant="outline"
+              className="flex-1 rounded-full sm:flex-none"
+              onClick={() => navigate(`/providers/${provider.id}`)}
+            >
+              Preview public page
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-card p-5 sm:p-6">
@@ -77,6 +84,14 @@ export default function DashboardProfile() {
         <BusinessForm
           initial={provider}
           submitLabel="Save profile"
+          onCoverImageChange={async (url) => {
+            try {
+              const updated = await providersApi.update(provider.id, { cover_image: url });
+              setProvider({ ...provider, ...updated });
+            } catch (err: any) {
+              toast.error(err?.message || 'Could not save cover photo');
+            }
+          }}
           onSubmit={async (patch) => {
             const updated = await providersApi.update(provider.id, patch);
             setProvider({ ...provider, ...updated });

@@ -22,7 +22,8 @@ import { disconnectTenantClients } from '../sse.js';
 import { DEFAULT_PASSWORD } from '../passwords.js';
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '../authSession.js';
 import { businessNow } from '../timezone.js';
-import { DEFAULT_WORKING_HOURS } from '../serializers.js';
+import { DEFAULT_WORKING_HOURS, inferTemplateId, serializeProvider } from '../serializers.js';
+import { broadcastEvent } from '../sse.js';
 import {
   badRequest,
   notFound,
@@ -135,6 +136,7 @@ router.get('/providers', async (_req, res) => {
       id: p.id,
       name: p.name,
       category: p.category,
+      templateId: inferTemplateId(p.category, p.templateId),
       city: p.city || 'South Africa',
       status: p.status,
       isActive: p.isActive,
@@ -191,12 +193,18 @@ router.post('/providers', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
     const fullName = `${adminFirstName} ${adminSurname}`.trim();
+    const resolvedCategory = String(category || 'Hair, Beauty & Wellness').trim();
+    const resolvedTemplateId = inferTemplateId(
+      resolvedCategory,
+      req.body?.template_id ?? req.body?.templateId,
+    );
 
     const result = await prisma.$transaction(async (tx) => {
       const provider = await tx.provider.create({
         data: {
           name: String(name).trim(),
-          category: String(category || 'Salon'),
+          category: resolvedCategory,
+          templateId: resolvedTemplateId,
           city: String(city || 'Johannesburg'),
           phone: String(phone || ''),
           email: normalizedEmail,
@@ -299,6 +307,62 @@ router.patch('/providers/:id/status', async (req, res) => {
   } catch (err) {
     logger.error({ err }, '[master] Toggle status error:');
     return internalError(res, 'updating business status');
+  }
+});
+
+// ── PATCH /api/master/providers/:id/category (Master-only Category Assignment) ──
+router.patch('/providers/:id/category', async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const rawCategory = String(req.body?.category || '').trim();
+    if (!rawCategory) {
+      return badRequest(res, 'Category is required.');
+    }
+
+    const existing = await prisma.provider.findUnique({ where: { id } });
+    if (!existing) return notFound(res, 'Business');
+
+    const resolvedTemplateId = inferTemplateId(
+      rawCategory,
+      req.body?.template_id ?? req.body?.templateId ?? rawCategory,
+    );
+
+    const updated = await prisma.provider.update({
+      where: { id },
+      data: {
+        category: rawCategory,
+        templateId: resolvedTemplateId,
+      },
+    });
+
+    logAudit({
+      entity: 'Provider',
+      entityId: id,
+      action: 'update_category',
+      actorId: req.authUser!.id,
+      actorEmail: req.authUser!.email,
+      actorRole: req.authUser!.role,
+      changes: computeChanges(
+        { category: existing.category, templateId: existing.templateId },
+        { category: updated.category, templateId: updated.templateId },
+      ),
+      justification: `Master updated category for "${updated.name}" to "${updated.category}"`,
+      ipAddress: getClientIp(req),
+      providerId: id,
+    });
+
+    const serialized = serializeProvider(updated);
+    broadcastEvent('provider:updated', { provider: serialized }, { providerId: updated.id });
+
+    return res.json({
+      success: true,
+      category: updated.category,
+      templateId: resolvedTemplateId,
+      message: `Category for "${updated.name}" updated to "${updated.category}".`,
+    });
+  } catch (err) {
+    logger.error({ err }, '[master] Update category error:');
+    return internalError(res, 'updating business category');
   }
 });
 

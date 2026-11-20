@@ -45,6 +45,7 @@ export interface ProviderRecord {
   vatNumber?: string;
   registrationNumber?: string;
   primaryContactName?: string;
+  slot_cutoff_minutes: number;
   created_date: string;
   updated_date: string;
 }
@@ -151,6 +152,7 @@ export interface SlotRecord {
   date: string;
   start_time: string;
   end_time: string;
+  cutoff_minutes: number;
   status: 'open' | 'booked' | 'blocked';
   booking_id: string | null;
   created_date: string;
@@ -193,7 +195,10 @@ export const DEFAULT_WORKING_HOURS: WorkingHoursDay[] = [
 ];
 
 export function serializeProvider(
-  p: Omit<Provider, 'templateId'> & { templateId?: string | null },
+  p: Omit<Provider, 'templateId' | 'slotCutoffMinutes'> & {
+    templateId?: string | null;
+    slotCutoffMinutes?: number | null;
+  },
 ): ProviderRecord {
   const rawHours = Array.isArray(p.workingHours)
     ? (p.workingHours as unknown as WorkingHoursDay[])
@@ -222,6 +227,10 @@ export function serializeProvider(
     vatNumber: p.vatNumber || '',
     registrationNumber: p.registrationNumber || '',
     primaryContactName: p.primaryContactName || '',
+    slot_cutoff_minutes:
+      typeof p.slotCutoffMinutes === 'number' && !Number.isNaN(p.slotCutoffMinutes)
+        ? Math.max(0, p.slotCutoffMinutes)
+        : 15,
     created_date: p.createdAt.toISOString(),
     updated_date: p.updatedAt.toISOString(),
   };
@@ -264,7 +273,9 @@ export function serializeProfessional(
   };
 }
 
-export function serializeSlot(s: Slot): SlotRecord {
+export function serializeSlot(
+  s: Omit<Slot, 'cutoffMinutes'> & { cutoffMinutes?: number | null },
+): SlotRecord {
   return {
     id: s.id,
     provider_id: s.providerId,
@@ -273,6 +284,10 @@ export function serializeSlot(s: Slot): SlotRecord {
     date: s.date,
     start_time: s.startTime,
     end_time: s.endTime,
+    cutoff_minutes:
+      typeof s.cutoffMinutes === 'number' && !Number.isNaN(s.cutoffMinutes)
+        ? Math.max(0, s.cutoffMinutes)
+        : 15,
     status: s.status,
     booking_id: s.bookingId ?? null,
     created_date: s.createdAt.toISOString(),

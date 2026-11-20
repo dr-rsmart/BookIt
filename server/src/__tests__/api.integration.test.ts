@@ -466,4 +466,121 @@ describe('BookIt! API Integration', () => {
     await prisma.booking.deleteMany({ where: { id: createdBooking.id } });
     await prisma.slot.deleteMany({ where: { id: erasureSlot.id } });
   });
+
+  it('enforces Master-only category changes, accepts image uploads, creates manual walk-in bookings, and expires open slots past cutoff', async () => {
+    // 1. Login as business admin (admin@bookit.com)
+    const adminLoginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@bookit.com', password: 'Password123' }),
+    });
+    expect(adminLoginRes.status).toBe(200);
+    const adminBody = (await adminLoginRes.json()) as any;
+    const adminToken = adminBody.token as string;
+
+    const mineRes = await fetch(`${baseUrl}/api/providers/mine`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const { provider } = (await mineRes.json()) as any;
+    expect(provider).toBeTruthy();
+
+    // 2. Business admin attempting to change category must be blocked with 403
+    const forbiddenCatRes = await fetch(`${baseUrl}/api/providers/${provider.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({ category: 'Automotive' }),
+    });
+    expect(forbiddenCatRes.status).toBe(403);
+
+    // 3. Master account can update the business category via /api/master/providers/:id/category
+    const masterLoginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'master@smartpatel.co.za', password: 'Password123' }),
+    });
+    const masterBody = (await masterLoginRes.json()) as any;
+    const masterToken = masterBody.token as string;
+
+    const masterCatRes = await fetch(`${baseUrl}/api/master/providers/${provider.id}/category`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${masterToken}`,
+      },
+      body: JSON.stringify({ category: provider.category }),
+    });
+    expect(masterCatRes.status).toBe(200);
+
+    // 4. Image upload endpoint accepts various image data URI formats
+    const uploadRes = await fetch(`${baseUrl}/api/uploads`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        dataUrl:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      }),
+    });
+    expect(uploadRes.status).toBe(200);
+    const uploadBody = (await uploadRes.json()) as any;
+    expect(uploadBody.file_url).toContain('data:image/png;base64,');
+
+    // 5. Business admin creates a manual walk-in booking without linking customerId to the admin
+    const manualBookingRes = await fetch(`${baseUrl}/api/bookings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        provider_id: provider.id,
+        provider_name: provider.name,
+        service_name: 'Walk-In Consultation',
+        customer_name: 'Walk-in Client',
+        customer_phone: '+27 82 111 2222',
+        customer_email: '',
+        date: '2026-12-22',
+        start_time: '11:00',
+        end_time: '11:30',
+        price: 550,
+        metadata: { manual_booking: true },
+      }),
+    });
+    expect(manualBookingRes.status).toBe(201);
+    const manualBooking = (await manualBookingRes.json()) as any;
+    expect(manualBooking.customer_name).toBe('Walk-in Client');
+    expect(manualBooking.customer_id).toBeNull();
+
+    // 6. Past/expired open slot with cutoffMinutes automatically disappears from GET /api/slots
+    const prosRes = await fetch(`${baseUrl}/api/professionals?provider_id=${provider.id}`);
+    const prosBody = (await prosRes.json()) as any;
+    const pro = prosBody.items[0];
+
+    const expiredSlot = await prisma.slot.create({
+      data: {
+        providerId: provider.id,
+        professionalId: pro.id,
+        date: '2020-01-01',
+        startTime: '09:30',
+        endTime: '10:00',
+        cutoffMinutes: 15,
+        status: 'open',
+      },
+    });
+
+    const slotsQueryRes = await fetch(
+      `${baseUrl}/api/slots?provider_id=${provider.id}&date=2020-01-01&status=open`,
+    );
+    expect(slotsQueryRes.status).toBe(200);
+    const slotsQueryBody = (await slotsQueryRes.json()) as any;
+    expect(slotsQueryBody.items.some((s: any) => s.id === expiredSlot.id)).toBe(false);
+
+    // Clean up test manual booking
+    await prisma.booking.deleteMany({ where: { id: manualBooking.id } });
+  });
 });

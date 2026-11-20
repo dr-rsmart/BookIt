@@ -183,6 +183,7 @@ export interface ProviderRecord {
   vatNumber?: string;
   registrationNumber?: string;
   primaryContactName?: string;
+  slot_cutoff_minutes?: number;
   created_date: string;
   updated_date: string;
 }
@@ -225,6 +226,7 @@ export interface SlotRecord {
   date: string;
   start_time: string;
   end_time: string;
+  cutoff_minutes?: number;
   status: SlotStatus;
   booking_id: string | null;
   created_date: string;

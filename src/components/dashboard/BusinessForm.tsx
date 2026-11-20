@@ -6,7 +6,7 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Lock, Sparkles } from 'lucide-react';
 import {
   Button,
   Input,
@@ -17,7 +17,6 @@ import {
   ImageUpload,
 } from '../ui';
 import {
-  CATEGORIES,
   CATEGORY_TEMPLATES,
   resolveCategoryTemplate,
   defaultWorkingHours,
@@ -27,7 +26,7 @@ import type { ProviderRecord, WorkingHoursDay } from '../../../contracts';
 
 const DEFAULT_VALUES = {
   name: '',
-  category: 'Salon',
+  category: 'Hair, Beauty & Wellness',
   template_id: 'Hair, Beauty & Wellness',
   tagline: '',
   about: '',
@@ -44,10 +43,14 @@ const DEFAULT_VALUES = {
 export default function BusinessForm({
   initial,
   submitLabel = 'Save changes',
+  allowCategorySelect = false,
+  onCoverImageChange,
   onSubmit,
 }: {
   initial?: Partial<ProviderRecord> | null;
   submitLabel?: string;
+  allowCategorySelect?: boolean;
+  onCoverImageChange?: (url: string) => void | Promise<void>;
   onSubmit: (data: Partial<ProviderRecord>) => Promise<void>;
 }) {
   const [fields, setFields] = useState(() => {
@@ -85,10 +88,15 @@ export default function BusinessForm({
     e.preventDefault();
     setSaving(true);
     try {
-      await onSubmit({
+      const payload: Partial<ProviderRecord> = {
         ...fields,
         working_hours: workingHours,
-      });
+      };
+      if (!allowCategorySelect && initial?.id) {
+        delete payload.category;
+        delete payload.template_id;
+      }
+      await onSubmit(payload);
     } finally {
       setSaving(false);
     }
@@ -101,29 +109,38 @@ export default function BusinessForm({
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              Category template
+              Assigned category template
             </div>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              Booking page, terminology & workspace adapt to your business type.
+              {allowCategorySelect
+                ? 'Booking page, terminology & workspace adapt to your business type.'
+                : 'Categories are pre-set by Platform Master accounts based on your pricing tier. Request a Master administrator to change your category.'}
             </p>
           </div>
-          <CategoryTemplatePickerModal
-            currentCategory={fields.category}
-            currentTemplateId={fields.template_id}
-            onSelectTemplate={(tpl) => {
-              setFields((prev) => ({
-                ...prev,
-                template_id: tpl.id,
-                category: tpl.legacyCategories.includes(prev.category) ? prev.category : tpl.id,
-              }));
-            }}
-            trigger={
-              <Button type="button" variant="outline" size="sm" className="rounded-full gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Choose from 13 templates
-              </Button>
-            }
-          />
+          {allowCategorySelect ? (
+            <CategoryTemplatePickerModal
+              currentCategory={fields.category}
+              currentTemplateId={fields.template_id}
+              onSelectTemplate={(tpl) => {
+                setFields((prev) => ({
+                  ...prev,
+                  template_id: tpl.id,
+                  category: tpl.id,
+                }));
+              }}
+              trigger={
+                <Button type="button" variant="outline" size="sm" className="rounded-full gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  Choose from 13 templates
+                </Button>
+              }
+            />
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/70 px-3 py-1 text-xs font-medium text-muted-foreground">
+              <Lock className="h-3.5 w-3.5 text-primary" />
+              Master-managed
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col justify-between gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center">
@@ -169,35 +186,35 @@ export default function BusinessForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="category">Category</Label>
-            <Select
-              id="category"
-              value={fields.category}
-              onChange={(e) => {
-                const newCat = e.target.value;
-                const resolved = resolveCategoryTemplate(newCat, null);
-                setFields((prev) => ({
-                  ...prev,
-                  category: newCat,
-                  template_id: resolved.id,
-                }));
-              }}
-              className="mt-2"
-            >
-              <optgroup label="13 Industry Templates">
+            {allowCategorySelect ? (
+              <Select
+                id="category"
+                value={activeTemplate.id}
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  const resolved = resolveCategoryTemplate(newCat, newCat);
+                  setFields((prev) => ({
+                    ...prev,
+                    category: resolved.id,
+                    template_id: resolved.id,
+                  }));
+                }}
+                className="mt-2"
+              >
                 {CATEGORY_TEMPLATES.map((tpl) => (
                   <option key={tpl.id} value={tpl.id}>
                     {tpl.title} — {tpl.subtitle}
                   </option>
                 ))}
-              </optgroup>
-              <optgroup label="Classic Categories">
-                {CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </option>
-                ))}
-              </optgroup>
-            </Select>
+              </Select>
+            ) : (
+              <div className="mt-2 flex h-11 items-center justify-between rounded-md border border-input bg-secondary/40 px-3 py-1.5 text-sm text-muted-foreground sm:h-9">
+                <span className="truncate font-medium text-foreground">{activeTemplate.title}</span>
+                <span className="ml-2 inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" /> Set by Master
+                </span>
+              </div>
+            )}
           </div>
           <div>
             <Label htmlFor="phone">Phone</Label>
@@ -232,7 +249,12 @@ export default function BusinessForm({
         <ImageUpload
           label="Cover photo"
           value={fields.cover_image}
-          onChange={(url) => setField('cover_image', url)}
+          onChange={(url) => {
+            setField('cover_image', url);
+            if (onCoverImageChange) {
+              void onCoverImageChange(url);
+            }
+          }}
         />
       </section>
 

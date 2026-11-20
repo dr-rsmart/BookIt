@@ -35,7 +35,7 @@ import {
   Spinner,
   Switch,
 } from '../components/ui';
-import { CATEGORIES, formatZAR } from '../lib/utils';
+import { BROWSE_CATEGORIES, resolveCategoryTemplate, formatZAR } from '../lib/utils';
 
 export default function MasterConsole() {
   const { refresh: refreshAuth } = useAuth();
@@ -55,7 +55,7 @@ export default function MasterConsole() {
 
   const [form, setForm] = useState({
     name: '',
-    category: 'Salon',
+    category: 'Hair, Beauty & Wellness',
     city: 'Johannesburg',
     phone: '',
     street: '',
@@ -97,7 +97,7 @@ export default function MasterConsole() {
       });
       setForm({
         name: '',
-        category: 'Salon',
+        category: 'Hair, Beauty & Wellness',
         city: 'Johannesburg',
         phone: '',
         street: '',
@@ -280,6 +280,34 @@ export default function MasterConsole() {
               </div>
 
               <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 sm:w-auto sm:justify-end sm:gap-3 sm:border-0 sm:pt-0">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor={`cat-${item.id}`} className="sr-only">
+                    Category
+                  </Label>
+                  <Select
+                    id={`cat-${item.id}`}
+                    aria-label={`Category for ${item.name}`}
+                    value={resolveCategoryTemplate(item.category, item.templateId).id}
+                    onChange={async (e) => {
+                      const nextCategory = e.target.value;
+                      try {
+                        const res = await masterApi.updateProviderCategory(item.id, nextCategory);
+                        toast.success(res.message);
+                        void loadAll();
+                      } catch (err: any) {
+                        toast.error(err.message || 'Could not update category');
+                      }
+                    }}
+                    className="h-8 w-44 rounded-full text-xs sm:w-52"
+                  >
+                    {BROWSE_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   Active
                   <Switch
@@ -335,14 +363,14 @@ export default function MasterConsole() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="ob-cat">Category</Label>
+              <Label htmlFor="ob-cat">Category (13 Industry Templates)</Label>
               <Select
                 id="ob-cat"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="mt-1.5"
               >
-                {CATEGORIES.map((c) => (
+                {BROWSE_CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
                   </option>

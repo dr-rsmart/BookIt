@@ -14,6 +14,7 @@ import { serializeBooking } from '../serializers.js';
 import { logAudit, getClientIp, computeChanges } from '../audit.js';
 import { broadcastEvent } from '../sse.js';
 import { businessNow } from '../timezone.js';
+import { isSlotExpiredByCutoff } from '../overlap.js';
 import { recordBookingCreated, recordBookingCancelled } from '../metrics.js';
 import { canManageProvider, canMutateBooking } from '../tenantPolicy.js';
 import { parsePagination, setPageHeaders } from '../pagination.js';
@@ -198,19 +199,38 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const isManager = await canManageProvider(authUser, providerId);
-    // Non-managers cannot spoof customer ID, email, or name
-    const effectiveCustomerId =
-      isManager && (body.customer_id || body.customerId)
-        ? String(body.customer_id || body.customerId)
-        : authUser.id;
-    const effectiveCustomerEmail =
-      isManager && (body.customer_email || body.customerEmail)
-        ? String(body.customer_email || body.customerEmail).toLowerCase().trim()
-        : authUser.email.toLowerCase().trim();
-    const effectiveCustomerName =
-      isManager && (body.customer_name || body.customerName)
-        ? String(body.customer_name || body.customerName).trim()
-        : String(authUser.fullName || authUser.email).trim();
+    const isManualMeta = Boolean(
+      body.is_manual ||
+        body.isManual ||
+        (body.metadata &&
+          typeof body.metadata === 'object' &&
+          (body.metadata as Record<string, unknown>).manual_booking),
+    );
+    const providedCustomerEmail = String(body.customer_email || body.customerEmail || '')
+      .toLowerCase()
+      .trim();
+    const providedCustomerName = String(body.customer_name || body.customerName || '').trim();
+
+    let effectiveCustomerId: string | null = authUser.id;
+    let effectiveCustomerEmail = authUser.email.toLowerCase().trim();
+    let effectiveCustomerName = String(authUser.fullName || authUser.email).trim();
+
+    if (isManager && (isManualMeta || providedCustomerName || providedCustomerEmail || body.customer_id || body.customerId)) {
+      effectiveCustomerName = providedCustomerName || effectiveCustomerName;
+      effectiveCustomerEmail = providedCustomerEmail;
+
+      if (body.customer_id || body.customerId) {
+        effectiveCustomerId = String(body.customer_id || body.customerId);
+      } else if (providedCustomerEmail) {
+        const matchedCustomer = await prisma.user.findUnique({
+          where: { email: providedCustomerEmail },
+          select: { id: true },
+        });
+        effectiveCustomerId = matchedCustomer?.id ?? null;
+      } else {
+        effectiveCustomerId = null;
+      }
+    }
 
     const rawPrice = body.price;
     const price =
@@ -218,12 +238,45 @@ router.post('/', requireAuth, async (req, res) => {
         ? null
         : new Prisma.Decimal(Number(rawPrice));
 
+    const { dateStr: nowDateStr, timeStr: nowTimeStr } = businessNow();
+
     const created = await prisma.$transaction(async (tx) => {
-      if (slotId) {
+      let resolvedSlotId: string | null = slotId ? String(slotId) : null;
+
+      if (resolvedSlotId) {
+        const targetSlot = await tx.slot.findUnique({ where: { id: resolvedSlotId } });
+        if (!targetSlot) {
+          throw Object.assign(new Error('Selected time slot no longer exists.'), {
+            status: 404,
+            code: 'NOT_FOUND',
+          });
+        }
+
+        // Enforce availability cutoff expiration for customer bookings
+        if (
+          !isManager &&
+          targetSlot.status === 'open' &&
+          isSlotExpiredByCutoff(
+            targetSlot.date,
+            targetSlot.startTime,
+            targetSlot.cutoffMinutes ?? provider.slotCutoffMinutes,
+            nowDateStr,
+            nowTimeStr,
+          )
+        ) {
+          await tx.slot.deleteMany({
+            where: { id: resolvedSlotId, status: 'open' },
+          });
+          throw Object.assign(
+            new Error('This availability slot has expired and is no longer bookable.'),
+            { status: 409, code: 'CONFLICT' },
+          );
+        }
+
         // Atomic check-and-set update: ensures only ONE concurrent transaction claims the slot
         const claimed = await tx.slot.updateMany({
           where: {
-            id: String(slotId),
+            id: resolvedSlotId,
             status: 'open',
           },
           data: {
@@ -232,17 +285,30 @@ router.post('/', requireAuth, async (req, res) => {
         });
 
         if (claimed.count === 0) {
-          const slotExists = await tx.slot.findUnique({ where: { id: String(slotId) } });
-          if (!slotExists) {
-            throw Object.assign(new Error('Selected time slot no longer exists.'), {
-              status: 404,
-              code: 'NOT_FOUND',
-            });
-          }
           throw Object.assign(
             new Error('This time slot has just been taken. Please pick another slot.'),
             { status: 409, code: 'CONFLICT' },
           );
+        }
+      } else if (professionalId) {
+        // If a manual booking is created at a custom time that matches an open slot, claim it automatically
+        const matchingOpenSlot = await tx.slot.findFirst({
+          where: {
+            providerId,
+            professionalId: String(professionalId),
+            date,
+            startTime,
+            status: 'open',
+          },
+        });
+        if (matchingOpenSlot) {
+          const claimed = await tx.slot.updateMany({
+            where: { id: matchingOpenSlot.id, status: 'open' },
+            data: { status: 'booked' },
+          });
+          if (claimed.count > 0) {
+            resolvedSlotId = matchingOpenSlot.id;
+          }
         }
       }
 
@@ -257,7 +323,7 @@ router.post('/', requireAuth, async (req, res) => {
             body.professional_name || body.professionalName
               ? String(body.professional_name || body.professionalName)
               : null,
-          slotId: slotId ? String(slotId) : null,
+          slotId: resolvedSlotId,
           customerId: effectiveCustomerId,
           customerName: effectiveCustomerName,
           customerEmail: effectiveCustomerEmail,
@@ -278,9 +344,9 @@ router.post('/', requireAuth, async (req, res) => {
         },
       });
 
-      if (slotId) {
+      if (resolvedSlotId) {
         await tx.slot.update({
-          where: { id: String(slotId) },
+          where: { id: resolvedSlotId },
           data: {
             bookingId: booking.id,
           },

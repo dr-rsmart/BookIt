@@ -18,6 +18,7 @@ import {
   formatDateHuman,
   formatDuration,
   formatZAR,
+  isSlotExpiredByCutoff,
 } from '../src/lib/utils';
 
 describe('BookIt! Frontend Utilities & Formatters', () => {
@@ -115,5 +116,21 @@ describe('BookIt! Frontend Utilities & Formatters', () => {
 
   it('formats YYYY-MM-DD dates into human-readable strings', () => {
     expect(formatDateHuman('2026-11-04')).toBe('Wed, 4 Nov 2026');
+  });
+
+  it('expires open availability slots when current time passes the configured cutoff minutes', () => {
+    // Example: slot at 09:30 with 15 min cutoff
+    // At 09:15 (15 min remaining) -> still available
+    expect(
+      isSlotExpiredByCutoff('2026-11-20', '09:30', 15, new Date(2026, 10, 20, 9, 15, 0)),
+    ).toBe(false);
+    // At 09:16 (14 min remaining < 15 min cutoff) -> expired / falls away
+    expect(
+      isSlotExpiredByCutoff('2026-11-20', '09:30', 15, new Date(2026, 10, 20, 9, 16, 0)),
+    ).toBe(true);
+    // Future date -> not expired
+    expect(
+      isSlotExpiredByCutoff('2026-11-21', '09:30', 15, new Date(2026, 10, 20, 18, 0, 0)),
+    ).toBe(false);
   });
 });

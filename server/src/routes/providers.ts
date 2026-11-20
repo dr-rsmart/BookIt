@@ -278,19 +278,43 @@ async function handleUpdateProvider(req: Request, res: Response) {
 
     const body = req.body || {};
     const data: Prisma.ProviderUpdateInput = {};
+    const isMasterActor = authUser.role === 'master' || authUser.originalRole === 'master';
+
+    const requestedCategory =
+      body.category !== undefined ? String(body.category).trim() : undefined;
+    const requestedTemplate =
+      body.template_id !== undefined || body.templateId !== undefined
+        ? String(body.template_id ?? body.templateId ?? '').trim()
+        : undefined;
+
+    const existingResolvedTemplate = inferTemplateId(existing.category, existing.templateId);
+    const isCategoryChangeRequested =
+      (requestedCategory !== undefined && requestedCategory !== existing.category) ||
+      (requestedTemplate !== undefined &&
+        requestedTemplate !== (existing.templateId || '') &&
+        requestedTemplate !== existingResolvedTemplate);
+
+    if (isCategoryChangeRequested && !isMasterActor) {
+      return accessDenied(
+        res,
+        'Only Master accounts can change or set business categories. Please contact a Master administrator to request a category change.',
+      );
+    }
 
     if (body.name !== undefined) data.name = String(body.name).trim();
-    if (body.category !== undefined) {
-      data.category = String(body.category);
-      if (body.template_id === undefined && body.templateId === undefined) {
-        data.templateId = inferTemplateId(String(body.category), null);
+    if (isMasterActor) {
+      if (requestedCategory !== undefined) {
+        data.category = requestedCategory;
+        if (requestedTemplate === undefined) {
+          data.templateId = inferTemplateId(requestedCategory, null);
+        }
       }
-    }
-    if (body.template_id !== undefined || body.templateId !== undefined) {
-      data.templateId = inferTemplateId(
-        body.category !== undefined ? String(body.category) : existing.category,
-        String(body.template_id ?? body.templateId ?? ''),
-      );
+      if (requestedTemplate !== undefined) {
+        data.templateId = inferTemplateId(
+          requestedCategory !== undefined ? requestedCategory : existing.category,
+          requestedTemplate,
+        );
+      }
     }
     if (body.tagline !== undefined) data.tagline = String(body.tagline);
     if (body.about !== undefined) data.about = String(body.about);
@@ -303,6 +327,12 @@ async function handleUpdateProvider(req: Request, res: Response) {
     if (body.country !== undefined) data.country = String(body.country);
     if (body.cover_image !== undefined) data.coverImage = String(body.cover_image);
     if (body.coverImage !== undefined) data.coverImage = String(body.coverImage);
+    if (body.slot_cutoff_minutes !== undefined || body.slotCutoffMinutes !== undefined) {
+      const parsedCutoff = Number(body.slot_cutoff_minutes ?? body.slotCutoffMinutes);
+      if (!Number.isNaN(parsedCutoff) && parsedCutoff >= 0) {
+        data.slotCutoffMinutes = Math.round(parsedCutoff);
+      }
+    }
     if (body.working_hours !== undefined) {
       data.workingHours = body.working_hours as Prisma.InputJsonValue;
     } else if (body.workingHours !== undefined) {

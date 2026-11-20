@@ -71,3 +71,44 @@ export function filterNonOverlappingSlots<T extends TimeWindow>(
 
   return { accepted, skippedCount };
 }
+
+/**
+ * Determines whether an open availability slot has passed its booking cutoff threshold.
+ * Example: slot at 09:30 with cutoffMinutes = 15 disappears once current time is 09:16
+ * (i.e. remaining minutes until slot start is strictly less than cutoffMinutes, or <= 0 when cutoffMinutes is 0).
+ */
+export function isSlotExpiredByCutoff(
+  slotDate: string,
+  slotStartTime: string,
+  cutoffMinutes: number | null | undefined,
+  nowDateStr: string,
+  nowTimeStr: string,
+): boolean {
+  const [sY, sM, sD] = String(slotDate || '')
+    .slice(0, 10)
+    .split('-')
+    .map(Number);
+  const [sH, sMin] = String(slotStartTime || '00:00')
+    .split(':')
+    .map(Number);
+  const [nY, nM, nD] = String(nowDateStr || '')
+    .slice(0, 10)
+    .split('-')
+    .map(Number);
+  const [nH, nMin] = String(nowTimeStr || '00:00')
+    .split(':')
+    .map(Number);
+
+  if (!sY || !sM || !sD || !nY || !nM || !nD) return false;
+
+  const slotStartMs = Date.UTC(sY, sM - 1, sD, sH || 0, sMin || 0, 0, 0);
+  const nowMs = Date.UTC(nY, nM - 1, nD, nH || 0, nMin || 0, 0, 0);
+  const remainingMinutes = Math.floor((slotStartMs - nowMs) / 60_000);
+  const cutoff = Math.max(0, Number(cutoffMinutes ?? 15) || 0);
+
+  if (cutoff === 0) {
+    return remainingMinutes <= 0;
+  }
+  return remainingMinutes < cutoff;
+}
+

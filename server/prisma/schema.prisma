@@ -92,6 +92,7 @@ model Provider {
   vatNumber          String?        @default("")
   registrationNumber String?        @default("")
   primaryContactName String?        @default("")
+  slotCutoffMinutes  Int            @default(15)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -169,6 +170,7 @@ model Slot {
   date           String // "YYYY-MM-DD"
   startTime      String // "HH:mm"
   endTime        String // "HH:mm"
+  cutoffMinutes  Int        @default(15)
   status         SlotStatus @default(open)
   bookingId      String?
   createdAt      DateTime   @default(now())

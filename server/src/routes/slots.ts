@@ -14,7 +14,13 @@ import { serializeSlot } from '../serializers.js';
 import { logAudit, getClientIp, computeChanges } from '../audit.js';
 import { broadcastEvent } from '../sse.js';
 import { canManageProvider } from '../tenantPolicy.js';
-import { filterNonOverlappingSlots, isValidTimeWindow, timesOverlap } from '../overlap.js';
+import {
+  filterNonOverlappingSlots,
+  isValidTimeWindow,
+  timesOverlap,
+  isSlotExpiredByCutoff,
+} from '../overlap.js';
+import { businessNow } from '../timezone.js';
 import { parsePagination, setPageHeaders } from '../pagination.js';
 import { badRequest, notFound, accessDenied, conflictError, internalError } from '../errorResponse.js';
 
@@ -56,10 +62,33 @@ router.get('/', optionalAuth, async (req, res) => {
       prisma.slot.count({ where }),
     ]);
 
-    setPageHeaders(res, total, meta);
+    const { dateStr: nowDateStr, timeStr: nowTimeStr } = businessNow();
+    const expiredOpenIds: string[] = [];
+    const activeSlots = slots.filter((s) => {
+      if (
+        s.status === 'open' &&
+        isSlotExpiredByCutoff(s.date, s.startTime, s.cutoffMinutes, nowDateStr, nowTimeStr)
+      ) {
+        expiredOpenIds.push(s.id);
+        return false;
+      }
+      return true;
+    });
+
+    if (expiredOpenIds.length > 0) {
+      await prisma.slot.deleteMany({
+        where: {
+          id: { in: expiredOpenIds },
+          status: 'open',
+        },
+      });
+    }
+
+    const adjustedTotal = Math.max(0, total - expiredOpenIds.length);
+    setPageHeaders(res, adjustedTotal, meta);
     return res.json({
-      items: slots.map(serializeSlot),
-      total,
+      items: activeSlots.map(serializeSlot),
+      total: adjustedTotal,
       limit: meta.limit,
       offset: meta.offset,
     });
@@ -101,6 +130,12 @@ router.post('/', requireAuth, async (req, res) => {
       return conflictError(res, 'This time slot overlaps with an existing slot for this professional.');
     }
 
+    const rawCutoff = body.cutoff_minutes ?? body.cutoffMinutes;
+    const cutoffMinutes =
+      rawCutoff !== undefined && rawCutoff !== null && !Number.isNaN(Number(rawCutoff))
+        ? Math.max(0, Math.min(1440, Math.round(Number(rawCutoff))))
+        : 15;
+
     const created = await prisma.slot.create({
       data: {
         providerId,
@@ -109,6 +144,7 @@ router.post('/', requireAuth, async (req, res) => {
         date,
         startTime,
         endTime,
+        cutoffMinutes,
         status: body.status === 'blocked' ? 'blocked' : 'open',
       },
     });
@@ -151,18 +187,29 @@ router.post('/bulk', requireAuth, async (req, res) => {
       date: string;
       startTime: string;
       endTime: string;
+      cutoffMinutes: number;
       status: 'open' | 'blocked';
     }
 
-    const candidates: CandidateSlot[] = items.map((item: any) => ({
-      providerId: String(item.provider_id || item.providerId || providerId),
-      professionalId: String(item.professional_id || item.professionalId),
-      serviceId: (item.service_id || item.serviceId || null) as string | null,
-      date: String(item.date),
-      startTime: String(item.start_time || item.startTime),
-      endTime: String(item.end_time || item.endTime),
-      status: (item.status === 'blocked' ? 'blocked' : 'open') as 'open' | 'blocked',
-    }));
+    const batchCutoffRaw = req.body?.cutoff_minutes ?? req.body?.cutoffMinutes;
+
+    const candidates: CandidateSlot[] = items.map((item: any) => {
+      const itemCutoffRaw = item.cutoff_minutes ?? item.cutoffMinutes ?? batchCutoffRaw;
+      const parsedCutoff =
+        itemCutoffRaw !== undefined && itemCutoffRaw !== null && !Number.isNaN(Number(itemCutoffRaw))
+          ? Math.max(0, Math.min(1440, Math.round(Number(itemCutoffRaw))))
+          : 15;
+      return {
+        providerId: String(item.provider_id || item.providerId || providerId),
+        professionalId: String(item.professional_id || item.professionalId),
+        serviceId: (item.service_id || item.serviceId || null) as string | null,
+        date: String(item.date),
+        startTime: String(item.start_time || item.startTime),
+        endTime: String(item.end_time || item.endTime),
+        cutoffMinutes: parsedCutoff,
+        status: (item.status === 'blocked' ? 'blocked' : 'open') as 'open' | 'blocked',
+      };
+    });
 
     const dates: string[] = [...new Set(candidates.map((c) => c.date))];
     const proIds: string[] = [...new Set(candidates.map((c) => c.professionalId))];
@@ -190,6 +237,17 @@ router.post('/bulk', requireAuth, async (req, res) => {
             skipDuplicates: true,
           })
         : { count: 0 };
+
+    if (candidates.length > 0) {
+      await prisma.provider
+        .update({
+          where: { id: providerId },
+          data: { slotCutoffMinutes: candidates[0].cutoffMinutes },
+        })
+        .catch(() => {
+          // ignore if provider update fails
+        });
+    }
 
     logAudit({
       entity: 'Slot',

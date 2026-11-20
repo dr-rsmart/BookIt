@@ -14,6 +14,7 @@ import {
   isValidTimeWindow,
   timesOverlap,
   filterNonOverlappingSlots,
+  isSlotExpiredByCutoff,
 } from '../overlap.js';
 import {
   DEFAULT_WORKING_HOURS,
@@ -214,5 +215,13 @@ describe('BookIt! Core Infrastructure & Domain', () => {
     expect(configured).toContain('connection_limit=50');
     expect(configured).toContain('pool_timeout=30');
     expect(configured).toContain('connection_timeout=10');
+  });
+
+  it('evaluates slot cutoff expiration threshold accurately (e.g. 09:30 slot with 15m cutoff falls away at 09:16)', () => {
+    expect(isSlotExpiredByCutoff('2026-11-20', '09:30', 15, '2026-11-20', '09:14')).toBe(false);
+    expect(isSlotExpiredByCutoff('2026-11-20', '09:30', 15, '2026-11-20', '09:15')).toBe(false);
+    expect(isSlotExpiredByCutoff('2026-11-20', '09:30', 15, '2026-11-20', '09:16')).toBe(true);
+    expect(isSlotExpiredByCutoff('2026-11-20', '09:30', 0, '2026-11-20', '09:29')).toBe(false);
+    expect(isSlotExpiredByCutoff('2026-11-20', '09:30', 0, '2026-11-20', '09:30')).toBe(true);
   });
 });

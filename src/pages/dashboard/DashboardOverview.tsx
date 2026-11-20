@@ -32,8 +32,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useSSE } from '../../hooks/useSSE';
 import DashboardSubNav from '../../components/dashboard/DashboardSubNav';
 import BusinessForm from '../../components/dashboard/BusinessForm';
-import { CategoryTemplatePickerModal } from '../../components/dashboard/CategoryTemplatePicker';
 import CategoryWorkspaceBoard from '../../components/dashboard/CategoryWorkspaceBoard';
+import ManualBookingModal from '../../components/dashboard/ManualBookingModal';
 import { Button, Skeleton, Spinner } from '../../components/ui';
 import { getCategoryMeta, resolveCategoryTemplate, formatZAR } from '../../lib/utils';
 
@@ -254,6 +254,7 @@ export default function DashboardOverview() {
         <div className="mt-6 sm:mt-8">
           <BusinessForm
             submitLabel="Create my business"
+            allowCategorySelect={isMasterOperator}
             onSubmit={async (data) => {
               const created = await providersApi.create({
                 ...data,
@@ -311,34 +312,9 @@ export default function DashboardOverview() {
                 Switch business
               </Button>
             )}
-            <CategoryTemplatePickerModal
-              currentCategory={provider.category}
-              currentTemplateId={provider.template_id}
-              onSelectTemplate={async (nextTpl) => {
-                try {
-                  const nextCat = nextTpl.legacyCategories.includes(provider.category)
-                    ? provider.category
-                    : nextTpl.id;
-                  const updated = await providersApi.update(provider.id, {
-                    category: nextCat,
-                    template_id: nextTpl.id,
-                  });
-                  setProvider({ ...provider, ...updated });
-                  toast.success(`Switched workspace template to "${nextTpl.title}".`);
-                } catch (err: any) {
-                  toast.error(err.message || 'Could not update category template');
-                }
-              }}
-              trigger={
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 rounded-full gap-1.5 sm:flex-none"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  Category template
-                </Button>
-              }
+            <ManualBookingModal
+              provider={provider}
+              onCreated={() => void loadStats()}
             />
             <Button
               variant="outline"

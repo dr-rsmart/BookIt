@@ -9,6 +9,7 @@
 import prisma from './prisma.js';
 import { logger } from './logger.js';
 import { businessNow, businessDateStr } from './timezone.js';
+import { isSlotExpiredByCutoff } from './overlap.js';
 import { broadcastEvent } from './sse.js';
 
 let cronTimer: NodeJS.Timeout | null = null;
@@ -94,6 +95,42 @@ export async function runBookingMaintenanceTick(): Promise<void> {
         { booking: { ...b, status: 'completed', updatedAt: completed.updatedAt.toISOString() } },
         { providerId: b.providerId, customerId: b.customerId },
       );
+    }
+
+    // Auto-expire and remove open slots that have passed their cutoff time
+    const candidateOpenSlots = await prisma.slot.findMany({
+      where: {
+        status: 'open',
+        date: { lte: dateStr },
+      },
+      select: {
+        id: true,
+        providerId: true,
+        date: true,
+        startTime: true,
+        cutoffMinutes: true,
+      },
+      take: 200,
+    });
+
+    const expiredSlots = candidateOpenSlots.filter((s) =>
+      isSlotExpiredByCutoff(s.date, s.startTime, s.cutoffMinutes, dateStr, timeStr),
+    );
+
+    if (expiredSlots.length > 0) {
+      await prisma.slot.deleteMany({
+        where: {
+          id: { in: expiredSlots.map((s) => s.id) },
+          status: 'open',
+        },
+      });
+      for (const s of expiredSlots) {
+        broadcastEvent(
+          'slot:deleted',
+          { slotId: s.id },
+          { providerId: s.providerId, public: true },
+        );
+      }
     }
   } catch (err) {
     logger.warn({ err }, '[cron] Maintenance tick warning:');
