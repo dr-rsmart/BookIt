@@ -72,6 +72,7 @@ model Provider {
   id                 String         @id @default(cuid())
   name               String
   category           String         @default("Salon")
+  templateId         String?        @default("")
   tagline            String?        @default("")
   about              String?        @default("")
   phone              String?        @default("")
@@ -201,6 +202,7 @@ model Booking {
   endTime          String // "HH:mm"
   price            Decimal?      @db.Decimal(10, 2)
   notes            String?       @default("")
+  metadata         Json?         @default("{}")
   status           BookingStatus @default(confirmed)
   reminderSentAt   DateTime?
   createdAt        DateTime      @default(now())

@@ -6,6 +6,21 @@
 
 export type Role = 'master' | 'admin' | 'manager' | 'employee' | 'customer';
 
+export type CategoryTemplateId =
+  | 'Hair, Beauty & Wellness'
+  | 'Healthcare'
+  | 'Fitness & Classes'
+  | 'Sport Facilities'
+  | 'Tuition'
+  | 'Restaurants & Cafes'
+  | 'Catering & Events'
+  | 'Venues & Spaces'
+  | 'Home & Trade Services'
+  | 'Automotive'
+  | 'Pet Services'
+  | 'Photography & Creative Services'
+  | 'Professional Consultations';
+
 export type ProviderCategory =
   | 'Doctor'
   | 'Salon'
@@ -13,7 +28,86 @@ export type ProviderCategory =
   | 'Dentist'
   | 'Spa & Wellness'
   | 'Fitness'
-  | 'Other';
+  | 'Other'
+  | CategoryTemplateId;
+
+export interface BookingAddonSelection {
+  id: string;
+  label: string;
+  price: number;
+}
+
+export interface BookingMetadata {
+  template_id?: CategoryTemplateId | string;
+  stage?: string;
+  resource_label?: string;
+  addons?: BookingAddonSelection[];
+  addons_total?: number;
+  // Healthcare
+  patient_type?: 'New patient' | 'Returning patient' | string;
+  payment_method?: 'Medical aid claim' | 'Private / card' | string;
+  medical_aid_scheme?: string;
+  medical_aid_number?: string;
+  dependant_code?: string;
+  // Automotive
+  vehicle_reg?: string;
+  vehicle_make_model?: string;
+  vehicle_year?: string;
+  odometer_km?: string;
+  transport_option?: 'Drop & collect' | 'Wait at workshop' | string;
+  // Fitness & Classes
+  spot_number?: number | string;
+  pass_type?: 'Single drop-in' | 'Use class pack' | 'Intro offer' | string;
+  // Sport Facilities
+  sport_type?: string;
+  match_type?: 'Casual booking' | 'Open match — find players' | 'Coaching session' | string;
+  court_label?: string;
+  // Tuition
+  subject?: string;
+  academic_level?: string;
+  delivery_mode?: 'In-person at centre' | 'Online video classroom' | string;
+  lesson_pack?: string;
+  // Restaurants & Cafes
+  party_size?: number;
+  sitting?: 'Lunch' | 'Dinner' | 'Breakfast / Brunch' | string;
+  seating_area?: string;
+  occasion_tags?: string[];
+  // Catering & Events
+  event_type?: string;
+  guest_count?: number;
+  service_style?: string;
+  dietary_counts?: Record<string, number>;
+  venue_address?: string;
+  setup_time?: string;
+  // Venues & Spaces
+  hire_duration?: string;
+  room_layout?: string;
+  // Home & Trade Services
+  trade_category?: string;
+  urgency_tier?: string;
+  service_address?: string;
+  suburb?: string;
+  property_type?: string;
+  arrival_window?: string;
+  // Pet Services
+  pet_name?: string;
+  pet_species?: 'Dog' | 'Cat' | string;
+  pet_size?: string;
+  pet_breed?: string;
+  coat_condition?: string;
+  temperament_tags?: string[];
+  // Photography & Creative Services
+  location_mode?: 'In-studio' | 'On-location' | string;
+  shoot_location_address?: string;
+  golden_hour?: boolean;
+  // Professional Consultations
+  practice_area?: string;
+  meeting_format?: 'Video call (Teams / Zoom)' | 'In-person boardroom' | 'Phone consultation' | string;
+  entity_name?: string;
+  counterparty_name?: string;
+  matter_reference?: string;
+  [key: string]: unknown;
+}
 
 export type ProviderStatus = 'published' | 'draft';
 
@@ -69,6 +163,7 @@ export interface ProviderRecord {
   id: string;
   name: string;
   category: ProviderCategory | string;
+  template_id?: CategoryTemplateId | string;
   tagline: string;
   about: string;
   phone: string;
@@ -154,6 +249,7 @@ export interface BookingRecord {
   end_time: string;
   price: number | null;
   notes: string;
+  metadata?: BookingMetadata;
   status: BookingStatus;
   reminder_sent_at: string | null;
   created_date: string;

@@ -5,7 +5,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   CATEGORIES,
+  BROWSE_CATEGORIES,
+  CATEGORY_TEMPLATES,
   getCategoryMeta,
+  resolveCategoryTemplate,
+  formatBookingMetadataBadges,
+  getBookingOperationalStage,
   defaultWorkingHours,
   timeToMinutes,
   minutesToTime,
@@ -21,6 +26,65 @@ describe('BookIt! Frontend Utilities & Formatters', () => {
     expect(getCategoryMeta('Doctor').label).toBe('Doctors');
     expect(getCategoryMeta('Salon').label).toBe('Salons');
     expect(getCategoryMeta('UnknownCategory').value).toBe('Other');
+  });
+
+  it('provides all 13 industry category templates and maps legacy categories seamlessly', () => {
+    expect(CATEGORY_TEMPLATES).toHaveLength(13);
+    expect(BROWSE_CATEGORIES).toHaveLength(13);
+
+    expect(resolveCategoryTemplate('Doctor').id).toBe('Healthcare');
+    expect(resolveCategoryTemplate('Dentist').id).toBe('Healthcare');
+    expect(resolveCategoryTemplate('Salon').id).toBe('Hair, Beauty & Wellness');
+    expect(resolveCategoryTemplate('Spa & Wellness').id).toBe('Hair, Beauty & Wellness');
+    expect(resolveCategoryTemplate('Mechanic').id).toBe('Automotive');
+    expect(resolveCategoryTemplate('Fitness').id).toBe('Fitness & Classes');
+    expect(resolveCategoryTemplate('Sport Facilities').terminology.bookingSingular).toBe('Slot');
+    expect(resolveCategoryTemplate('Restaurants & Cafes').terminology.bookingSingular).toBe('Reservation');
+    expect(resolveCategoryTemplate('Tuition').terminology.teamPlural).toBe('Tutors');
+    expect(resolveCategoryTemplate('Pet Services').terminology.customerSingular).toBe('Pet owner');
+  });
+
+  it('formats structured category booking metadata into display badges and resolves operational stage', () => {
+    const autoBadges = formatBookingMetadataBadges({
+      stage: 'On hoist / In bay',
+      resource_label: 'Bay 1 — Service Hoist',
+      vehicle_reg: 'CA 482-910',
+      vehicle_make_model: 'VW Golf 8 GTI',
+      transport_option: 'Drop & collect',
+      addons: [{ id: 'wheel_alignment', label: '3D 4-Wheel Laser Alignment check', price: 480 }],
+    });
+    expect(autoBadges.some((b) => b.label.includes('CA 482-910'))).toBe(true);
+    expect(autoBadges.some((b) => b.label.includes('Bay 1'))).toBe(true);
+    expect(autoBadges.some((b) => b.label.includes('+1 add-on'))).toBe(true);
+
+    const autoTpl = resolveCategoryTemplate('Automotive');
+    const stage = getBookingOperationalStage(
+      {
+        id: 'b_1',
+        provider_id: 'p_1',
+        provider_name: 'Cape Auto',
+        service_id: 's_1',
+        service_name: 'Service',
+        professional_id: 'pro_1',
+        professional_name: 'Dawid',
+        slot_id: null,
+        customer_id: 'c_1',
+        customer_name: 'Sipho',
+        customer_email: 'sipho@bookit.com',
+        customer_phone: '',
+        date: '2026-11-04',
+        start_time: '09:00',
+        end_time: '10:00',
+        price: 1650,
+        notes: '',
+        status: 'completed',
+        reminder_sent_at: null,
+        created_date: '',
+        updated_date: '',
+      },
+      autoTpl,
+    );
+    expect(stage).toBe('Ready for collection');
   });
 
   it('generates default 7-day working hours with Sunday closed', () => {

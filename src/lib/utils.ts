@@ -19,6 +19,23 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { WorkingHoursDay, BookingStatus } from '../../contracts';
+import {
+  CATEGORY_TEMPLATES,
+  resolveCategoryTemplate,
+  formatBookingMetadataBadges,
+  getBookingOperationalStage,
+  getMatchingCategoriesForFilter,
+  type CategoryTemplateSpec,
+} from './categoryTemplates';
+
+export {
+  CATEGORY_TEMPLATES,
+  resolveCategoryTemplate,
+  formatBookingMetadataBadges,
+  getBookingOperationalStage,
+  getMatchingCategoriesForFilter,
+  type CategoryTemplateSpec,
+};
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
@@ -29,20 +46,49 @@ export interface CategoryMeta {
   label: string;
   Icon: LucideIcon;
   blurb: string;
+  templateId?: string;
 }
 
 export const CATEGORIES: CategoryMeta[] = [
-  { value: 'Doctor', label: 'Doctors', Icon: Stethoscope, blurb: 'Clinics & physicians' },
-  { value: 'Salon', label: 'Salons', Icon: Scissors, blurb: 'Hair, nails & beauty' },
-  { value: 'Mechanic', label: 'Mechanics', Icon: Wrench, blurb: 'Auto service & repair' },
-  { value: 'Dentist', label: 'Dentists', Icon: Smile, blurb: 'Dental care' },
-  { value: 'Spa & Wellness', label: 'Spa & Wellness', Icon: Sparkles, blurb: 'Massage & treatments' },
-  { value: 'Fitness', label: 'Fitness', Icon: Dumbbell, blurb: 'Training & classes' },
-  { value: 'Other', label: 'Other', Icon: Store, blurb: 'Anything else' },
+  { value: 'Doctor', label: 'Doctors', Icon: Stethoscope, blurb: 'Clinics & physicians', templateId: 'Healthcare' },
+  { value: 'Salon', label: 'Salons', Icon: Scissors, blurb: 'Hair, nails & beauty', templateId: 'Hair, Beauty & Wellness' },
+  { value: 'Mechanic', label: 'Mechanics', Icon: Wrench, blurb: 'Auto service & repair', templateId: 'Automotive' },
+  { value: 'Dentist', label: 'Dentists', Icon: Smile, blurb: 'Dental care', templateId: 'Healthcare' },
+  { value: 'Spa & Wellness', label: 'Spa & Wellness', Icon: Sparkles, blurb: 'Massage & treatments', templateId: 'Hair, Beauty & Wellness' },
+  { value: 'Fitness', label: 'Fitness', Icon: Dumbbell, blurb: 'Training & classes', templateId: 'Fitness & Classes' },
+  { value: 'Other', label: 'Other', Icon: Store, blurb: 'Anything else', templateId: 'Professional Consultations' },
 ];
 
+/**
+ * All 13 industry category templates for Browse filter pills and business onboarding.
+ */
+export const BROWSE_CATEGORIES: CategoryMeta[] = CATEGORY_TEMPLATES.map((tpl) => ({
+  value: tpl.id,
+  label: tpl.title,
+  Icon: tpl.Icon,
+  blurb: tpl.subtitle,
+  templateId: tpl.id,
+}));
+
 export function getCategoryMeta(category?: string | null): CategoryMeta {
-  return CATEGORIES.find((c) => c.value === category) || CATEGORIES[CATEGORIES.length - 1];
+  if (!category) return CATEGORIES[CATEGORIES.length - 1];
+  const legacyMatch = CATEGORIES.find((c) => c.value === category);
+  if (legacyMatch) return legacyMatch;
+
+  const templateMatch = CATEGORY_TEMPLATES.find(
+    (t) => t.id.toLowerCase() === category.toLowerCase(),
+  );
+  if (templateMatch) {
+    return {
+      value: templateMatch.id,
+      label: templateMatch.title,
+      Icon: templateMatch.Icon,
+      blurb: templateMatch.subtitle,
+      templateId: templateMatch.id,
+    };
+  }
+
+  return CATEGORIES[CATEGORIES.length - 1];
 }
 
 export const DAYS_OF_WEEK = [

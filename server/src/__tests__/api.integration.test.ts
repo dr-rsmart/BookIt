@@ -38,13 +38,23 @@ describe('BookIt! API Integration', () => {
     expect(body.database.status).toBe('healthy');
   });
 
-  it('lists published South African businesses from /api/providers', async () => {
+  it('lists published South African businesses from /api/providers across all 13 category templates', async () => {
     const res = await fetch(`${baseUrl}/api/providers?status=published`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(Array.isArray(body.items)).toBe(true);
-    expect(body.items.length).toBeGreaterThanOrEqual(6);
+    expect(body.items.length).toBeGreaterThanOrEqual(15);
     expect(body.items.some((p: any) => p.name.includes('Sandton Medical'))).toBe(true);
+    expect(body.items.every((p: any) => typeof p.template_id === 'string' && p.template_id.length > 0)).toBe(true);
+
+    // Filtering by category template 'Healthcare' matches Doctor and Dentist providers
+    const healthRes = await fetch(
+      `${baseUrl}/api/providers?status=published&category=${encodeURIComponent('Healthcare')}`,
+    );
+    expect(healthRes.status).toBe(200);
+    const healthBody = (await healthRes.json()) as any;
+    expect(healthBody.items.length).toBeGreaterThanOrEqual(2);
+    expect(healthBody.items.every((p: any) => p.template_id === 'Healthcare')).toBe(true);
   });
 
   it('authenticates clinic admin and returns httpOnly session cookie + provider context', async () => {
@@ -177,6 +187,58 @@ describe('BookIt! API Integration', () => {
       expect(body.user.email).toBe(email);
       expect(body.user.role).toBe('master');
     }
+  });
+
+  it('switches from Master operator into any Browse business via Simulator demo-login and resolves /api/providers/mine', async () => {
+    // 1. Login as Ricardo Smart (Master)
+    const masterLoginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'ricardo@smartpatel.tech', password: 'ChangeMe123!' }),
+    });
+    expect(masterLoginRes.status).toBe(200);
+    const masterLoginBody = (await masterLoginRes.json()) as any;
+    const masterCookie = (masterLoginRes.headers.get('set-cookie') || '').split(';')[0];
+
+    // 2. Fetch published Browse businesses and pick Atelier Hair & Beauty Studio
+    const browseRes = await fetch(`${baseUrl}/api/providers?status=published`);
+    const browseBody = (await browseRes.json()) as any;
+    const atelier = browseBody.items.find((p: any) => p.name.includes('Atelier Hair'));
+    expect(atelier).toBeTruthy();
+
+    // 3. Launch Simulator Persona for Atelier Hair & Beauty Studio
+    const demoRes = await fetch(`${baseUrl}/api/master/demo-login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: masterCookie,
+        Authorization: `Bearer ${masterLoginBody.token}`,
+      },
+      body: JSON.stringify({
+        email: atelier.owner_email,
+        providerId: atelier.id,
+      }),
+    });
+    expect(demoRes.status).toBe(200);
+    const demoBody = (await demoRes.json()) as any;
+    expect(demoBody.success).toBe(true);
+    expect(demoBody.token).toBeTruthy();
+    expect(demoBody.providerId).toBe(atelier.id);
+    const demoCookie = (demoRes.headers.get('set-cookie') || '').split(';')[0];
+
+    // 4. Verify /api/providers/mine returns Atelier Hair & Beauty Studio (even if old Bearer header were sent alongside new cookie)
+    const mineRes = await fetch(`${baseUrl}/api/providers/mine`, {
+      headers: {
+        Cookie: demoCookie,
+        Authorization: `Bearer ${masterLoginBody.token}`,
+      },
+    });
+    expect(mineRes.status).toBe(200);
+    const mineBody = (await mineRes.json()) as any;
+    expect(mineBody.provider).toBeTruthy();
+    expect(mineBody.provider.id).toBe(atelier.id);
+    expect(mineBody.provider.name).toContain('Atelier Hair');
+    expect(mineBody.provider.template_id).toBe('Hair, Beauty & Wellness');
   });
 
   it('atomically prevents double-booking race condition under concurrent requests', async () => {

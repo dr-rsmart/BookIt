@@ -317,12 +317,25 @@ router.post('/impersonate/:providerId', async (req, res) => {
     const targetUser =
       provider.owner ||
       (await prisma.user.findFirst({
-        where: { providerId: provider.id },
+        where: {
+          OR: [
+            { providerId: provider.id },
+            { email: { equals: provider.ownerEmail, mode: 'insensitive' } },
+          ],
+        },
       }));
 
     if (!targetUser) {
       return badRequest(res, 'No owner account is linked to this business.');
     }
+
+    if (targetUser.providerId !== provider.id) {
+      await prisma.user.update({
+        where: { id: targetUser.id },
+        data: { providerId: provider.id },
+      });
+    }
+    invalidateLiveRoleCache(targetUser.id);
 
     const token = signToken({
       id: targetUser.id,
@@ -351,6 +364,8 @@ router.post('/impersonate/:providerId', async (req, res) => {
 
     return res.json({
       success: true,
+      token,
+      providerId: provider.id,
       message: `Now viewing as ${provider.name}`,
     });
   } catch (err) {
@@ -364,20 +379,91 @@ router.post('/demo-login', async (req, res) => {
   try {
     const masterUser = req.authUser!;
     const email = String(req.body?.email || '').toLowerCase().trim();
-    if (!email) return badRequest(res, 'Persona email is required.');
+    const requestedProviderId = String(req.body?.providerId || req.body?.provider_id || '').trim();
 
-    const targetUser = await prisma.user.findUnique({
-      where: { email },
-      include: { ownedProviders: { take: 1 } },
-    });
+    if (!email && !requestedProviderId) {
+      return badRequest(res, 'Persona email or providerId is required.');
+    }
+
+    let targetProvider = requestedProviderId
+      ? await prisma.provider.findUnique({
+          where: { id: requestedProviderId },
+          include: { owner: true },
+        })
+      : null;
+
+    let targetUser = email
+      ? await prisma.user.findUnique({
+          where: { email },
+          include: { ownedProviders: { take: 1 } },
+        })
+      : null;
+
+    if (!targetUser && targetProvider) {
+      const ownerFromProvider =
+        targetProvider.owner ||
+        (await prisma.user.findFirst({
+          where: {
+            OR: [
+              { providerId: targetProvider.id },
+              { email: { equals: targetProvider.ownerEmail, mode: 'insensitive' } },
+            ],
+          },
+        }));
+      if (ownerFromProvider) {
+        targetUser = await prisma.user.findUnique({
+          where: { id: ownerFromProvider.id },
+          include: { ownedProviders: { take: 1 } },
+        });
+      }
+    }
+
     if (!targetUser) return notFound(res, 'Demo persona user');
 
     const realMasterId = masterUser.originalUserId || masterUser.id;
     const realMasterEmail = masterUser.originalEmail || masterUser.email;
     const isReturningToMaster = targetUser.role === 'master';
 
-    const effectiveProviderId =
-      targetUser.providerId || targetUser.ownedProviders[0]?.id || null;
+    if (!targetProvider && !isReturningToMaster && targetUser.role !== 'customer') {
+      const candidateId = targetUser.providerId || targetUser.ownedProviders[0]?.id;
+      if (candidateId) {
+        targetProvider = await prisma.provider.findUnique({
+          where: { id: candidateId },
+          include: { owner: true },
+        });
+      }
+      if (!targetProvider) {
+        targetProvider = await prisma.provider.findFirst({
+          where: {
+            OR: [
+              { ownerUserId: targetUser.id },
+              { ownerEmail: { equals: targetUser.email, mode: 'insensitive' } },
+            ],
+          },
+          include: { owner: true },
+        });
+      }
+    }
+
+    const effectiveProviderId = isReturningToMaster
+      ? null
+      : targetProvider?.id || targetUser.providerId || targetUser.ownedProviders[0]?.id || null;
+
+    // Self-heal User.providerId and Provider.ownerUserId if needed
+    if (effectiveProviderId && targetUser.providerId !== effectiveProviderId) {
+      await prisma.user.update({
+        where: { id: targetUser.id },
+        data: { providerId: effectiveProviderId },
+      });
+    }
+    if (targetProvider && !targetProvider.ownerUserId && targetUser.role !== 'customer') {
+      await prisma.provider.update({
+        where: { id: targetProvider.id },
+        data: { ownerUserId: targetUser.id },
+      });
+    }
+
+    invalidateLiveRoleCache(targetUser.id);
 
     const token = signToken({
       id: targetUser.id,
@@ -405,14 +491,18 @@ router.post('/demo-login', async (req, res) => {
       actorId: realMasterId,
       actorEmail: realMasterEmail,
       actorRole: 'master',
-      justification: `Launched simulator persona ${targetUser.email} (${targetUser.role})`,
+      justification: `Launched simulator persona ${targetUser.email} (${targetUser.role})${targetProvider ? ` for "${targetProvider.name}"` : ''}`,
       ipAddress: getClientIp(req),
       providerId: effectiveProviderId,
     });
 
     return res.json({
       success: true,
-      message: `Simulator active: ${targetUser.fullName} (${targetUser.role})`,
+      token,
+      providerId: effectiveProviderId,
+      message: targetProvider
+        ? `Simulator active: ${targetProvider.name} (${targetUser.fullName})`
+        : `Simulator active: ${targetUser.fullName} (${targetUser.role})`,
     });
   } catch (err) {
     logger.error({ err }, '[master] Demo login error:');
@@ -431,6 +521,8 @@ router.post('/stop-impersonation', async (req, res) => {
       master = await prisma.user.findFirst({ where: { role: 'master' } });
     }
     if (!master) return notFound(res, 'Master operator');
+
+    invalidateLiveRoleCache(master.id);
 
     const token = signToken({
       id: master.id,
@@ -456,6 +548,7 @@ router.post('/stop-impersonation', async (req, res) => {
 
     return res.json({
       success: true,
+      token,
       message: 'Restored Master Console session.',
     });
   } catch (err) {

@@ -20,6 +20,7 @@ import {
   formatZAR,
   STATUS_BADGE_CLASSES,
   relativeTimeNotice,
+  formatBookingMetadataBadges,
 } from '../lib/utils';
 import { useSSE } from '../hooks/useSSE';
 
@@ -33,6 +34,7 @@ function CustomerBookingCard({
   highlighted?: boolean;
 }) {
   const rel = relativeTimeNotice(booking.date, booking.start_time);
+  const metadataBadges = formatBookingMetadataBadges(booking.metadata);
 
   return (
     <div
@@ -87,6 +89,24 @@ function CustomerBookingCard({
           <span className="font-medium text-foreground">{formatZAR(booking.price)}</span>
         )}
       </div>
+
+      {metadataBadges.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {metadataBadges.map((b, idx) => (
+            <span
+              key={`${b.label}-${idx}`}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                b.highlight
+                  ? 'border-primary/25 bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/50 text-muted-foreground',
+              )}
+            >
+              {b.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       {booking.status !== 'cancelled' && booking.status !== 'completed' && (
         <div className="mt-4 flex justify-end">

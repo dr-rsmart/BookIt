@@ -33,10 +33,12 @@ import {
   formatZAR,
   formatDateHuman,
   formatTime12,
+  resolveCategoryTemplate,
+  formatBookingMetadataBadges,
 } from '../lib/utils';
 import { useSSE } from '../hooks/useSSE';
-
-const STEPS = ['Service', 'Professional', 'Time', 'Confirm'];
+import CategoryBookingIntake from '../components/booking/CategoryBookingIntake';
+import type { BookingMetadata } from '../../contracts';
 
 function SelectableCard({
   selected,
@@ -205,6 +207,7 @@ export default function BookAppointment() {
     phone: '',
     notes: '',
   });
+  const [bookingMetadata, setBookingMetadata] = useState<BookingMetadata>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRecord | null>(null);
 
@@ -347,7 +350,14 @@ export default function BookAppointment() {
     );
   }
 
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
+  const addonsTotal = Number(bookingMetadata.addons_total || 0);
+  const baseServicePrice = selectedService?.price != null ? Number(selectedService.price) : null;
+  const totalEstimatedPrice =
+    baseServicePrice != null ? baseServicePrice + addonsTotal : addonsTotal > 0 ? addonsTotal : null;
+
   if (confirmedBooking) {
+    const confirmedBadges = formatBookingMetadataBadges(confirmedBooking.metadata);
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-5 sm:py-16">
         <div className="rounded-3xl border border-primary/25 bg-card p-6 text-center sm:p-8">
@@ -359,6 +369,24 @@ export default function BookAppointment() {
             {confirmedBooking.service_name} at {confirmedBooking.provider_name}
           </p>
 
+          {confirmedBadges.length > 0 && (
+            <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+              {confirmedBadges.map((b, idx) => (
+                <span
+                  key={`${b.label}-${idx}`}
+                  className={cn(
+                    'rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                    b.highlight
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'border-border bg-secondary/50 text-muted-foreground',
+                  )}
+                >
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          )}
+
           <dl className="mt-6 space-y-3 rounded-2xl bg-secondary/60 p-4 text-left text-sm sm:mt-8 sm:p-5">
             <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
               <dt className="text-muted-foreground">When</dt>
@@ -369,7 +397,7 @@ export default function BookAppointment() {
               </dd>
             </div>
             <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
-              <dt className="text-muted-foreground">Professional</dt>
+              <dt className="text-muted-foreground">{template.terminology.teamSingular}</dt>
               <dd className="font-medium text-foreground sm:font-normal">
                 {confirmedBooking.professional_name || 'To be assigned'}
               </dd>
@@ -415,15 +443,22 @@ export default function BookAppointment() {
         <ArrowLeft className="h-4 w-4" /> {provider.name}
       </Link>
 
-      <h1 className="mt-3 font-display text-2xl text-foreground sm:mt-4 sm:text-3xl">
-        Book an appointment
-      </h1>
-
-      <div className="mt-5 sm:mt-6">
-        <StepPills steps={STEPS} current={step} />
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 sm:mt-4">
+        <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+          {template.terminology.bookCtaLabel}
+        </h1>
+        <span className="rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+          {template.title}
+        </span>
       </div>
 
-      {(provider.category === 'Doctor' || provider.category === 'Dentist') && (
+      <div className="mt-5 sm:mt-6">
+        <StepPills steps={template.wizardSteps} current={step} />
+      </div>
+
+      {(template.id === 'Healthcare' ||
+        provider.category === 'Doctor' ||
+        provider.category === 'Dentist') && (
         <div
           role="note"
           className="mt-5 flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3.5 text-xs leading-relaxed text-muted-foreground"
@@ -479,8 +514,8 @@ export default function BookAppointment() {
             <SelectableCard
               selected={selectedProfessionalId === ''}
               onClick={() => setSelectedProfessionalId('')}
-              title="Any available professional"
-              subtitle="We’ll assign the first professional free at your chosen time."
+              title={`Any available ${template.terminology.teamSingular.toLowerCase()}`}
+              subtitle={`We’ll assign the first ${template.terminology.teamSingular.toLowerCase()} free at your chosen time.`}
             />
             {eligibleProfessionals.map((pro) => (
               <SelectableCard
@@ -541,20 +576,36 @@ export default function BookAppointment() {
           </section>
         )}
 
-        {/* Step 3: Confirm Booking */}
+        {/* Step 3: Confirm Booking & Category Intake */}
         {step === 3 && selectedSlot && (
           <section className="space-y-6">
             <div className="rounded-2xl border border-border bg-secondary/50 p-5 text-sm">
-              <p className="font-medium text-foreground">{selectedService?.name}</p>
-              <p className="mt-1 text-muted-foreground">
-                {formatDateHuman(selectedSlot.date)} · {formatTime12(selectedSlot.start_time)}–
-                {formatTime12(selectedSlot.end_time)}
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                {professionals.find((p) => p.id === selectedSlot.professional_id)?.name ||
-                  'Any professional'}
-                {formatZAR(selectedService?.price) ? ` · ${formatZAR(selectedService?.price)}` : ''}
-              </p>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-medium text-foreground">{selectedService?.name}</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {formatDateHuman(selectedSlot.date)} · {formatTime12(selectedSlot.start_time)}–
+                    {formatTime12(selectedSlot.end_time)}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {professionals.find((p) => p.id === selectedSlot.professional_id)?.name ||
+                      `Any ${template.terminology.teamSingular.toLowerCase()}`}
+                    {bookingMetadata.resource_label ? ` · ${bookingMetadata.resource_label}` : ''}
+                  </p>
+                </div>
+                {formatZAR(totalEstimatedPrice) && (
+                  <div className="text-right">
+                    <p className="font-display text-lg text-foreground">
+                      {formatZAR(totalEstimatedPrice)}
+                    </p>
+                    {addonsTotal > 0 && (
+                      <p className="text-[11px] text-muted-foreground">
+                        incl. {formatZAR(addonsTotal)} add-ons
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
               <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Banknote className="h-3.5 w-3.5 shrink-0 text-primary" />
                 <span>
@@ -563,6 +614,13 @@ export default function BookAppointment() {
                 </span>
               </p>
             </div>
+
+            {/* Category-Specific Intake & Optional Add-ons */}
+            <CategoryBookingIntake
+              template={template}
+              metadata={bookingMetadata}
+              onChange={setBookingMetadata}
+            />
 
             {isAuthenticated ? (
               <div className="space-y-4">
@@ -635,7 +693,7 @@ export default function BookAppointment() {
                         provider_id: provider.id,
                         provider_name: provider.name,
                         service_id: selectedService?.id ?? null,
-                        service_name: selectedService?.name || 'Appointment',
+                        service_name: selectedService?.name || template.terminology.bookingSingular,
                         professional_id: assignedPro?.id ?? null,
                         professional_name: assignedPro?.name ?? null,
                         slot_id: selectedSlot.id,
@@ -646,8 +704,13 @@ export default function BookAppointment() {
                         date: selectedSlot.date,
                         start_time: selectedSlot.start_time,
                         end_time: selectedSlot.end_time,
-                        price: selectedService?.price ?? null,
+                        price: totalEstimatedPrice,
                         notes: customerDetails.notes,
+                        metadata: {
+                          ...bookingMetadata,
+                          template_id: template.id,
+                          stage: bookingMetadata.stage || template.operationalStages[0],
+                        },
                         status: 'confirmed',
                       });
                       setConfirmedBooking(created);

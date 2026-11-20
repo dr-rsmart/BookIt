@@ -12,7 +12,7 @@ import { useSSE } from '../../hooks/useSSE';
 import DashboardSubNav from '../../components/dashboard/DashboardSubNav';
 import BookingRow from '../../components/dashboard/BookingRow';
 import { Spinner } from '../../components/ui';
-import { cn } from '../../lib/utils';
+import { cn, resolveCategoryTemplate } from '../../lib/utils';
 
 const TABS = [
   { key: 'upcoming', label: 'Upcoming' },
@@ -59,13 +59,17 @@ export default function DashboardBookings() {
 
   if (!provider) return <Navigate to="/dashboard" replace />;
 
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
+
   return (
     <div>
       <DashboardSubNav />
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-5 sm:py-10">
-        <h1 className="font-display text-2xl text-foreground sm:text-3xl">Bookings</h1>
+        <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+          {template.terminology.bookingsNavLabel}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-          Confirm, complete, remind or cancel — all from here.
+          Confirm, update stage, complete, remind or cancel — all from here.
         </p>
 
         <div className="no-scrollbar mt-5 flex snap-x gap-2 overflow-x-auto pb-1 sm:mt-6 sm:flex-wrap">
@@ -97,6 +101,7 @@ export default function DashboardBookings() {
             <BookingRow
               key={b.id}
               booking={b}
+              template={template}
               onChange={() => void loadBookings(provider.id, tab)}
             />
           ))}

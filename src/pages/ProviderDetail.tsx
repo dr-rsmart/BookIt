@@ -32,6 +32,7 @@ import {
 import { Badge, Button, DialogModal, Input, Label, Select, Textarea, Skeleton } from '../components/ui';
 import {
   getCategoryMeta,
+  resolveCategoryTemplate,
   formatDuration,
   formatZAR,
   formatTime12,
@@ -114,8 +115,11 @@ export default function ProviderDetail() {
   }
 
   const { Icon, label } = getCategoryMeta(provider.category);
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
   const isHealthcareProvider =
-    provider.category === 'Doctor' || provider.category === 'Dentist';
+    template.id === 'Healthcare' ||
+    provider.category === 'Doctor' ||
+    provider.category === 'Dentist';
   const fullAddress = [provider.street, provider.city, provider.postcode, provider.country]
     .filter(Boolean)
     .join(', ');
@@ -145,10 +149,20 @@ export default function ProviderDetail() {
 
       <div className="mt-5 flex flex-wrap items-start justify-between gap-4 sm:mt-6 sm:gap-5">
         <div>
-          <Badge variant="outline" className="border-primary/25 bg-primary/5 text-primary">
-            <Icon className="mr-1.5 h-3.5 w-3.5" />
-            {label}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="border-primary/25 bg-primary/5 text-primary">
+              <Icon className="mr-1.5 h-3.5 w-3.5" />
+              {label}
+            </Badge>
+            {template.featureChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-border bg-secondary/50 px-2.5 py-0.5 text-xs text-muted-foreground"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
           <h1 className="mt-2.5 font-display text-2xl text-foreground sm:mt-3 sm:text-4xl">
             {provider.name}
           </h1>
@@ -163,7 +177,7 @@ export default function ProviderDetail() {
           className="w-full rounded-full sm:w-auto"
           onClick={() => navigate(`/providers/${provider.id}/book`)}
         >
-          <CalendarPlus className="mr-2 h-4 w-4" /> Book an appointment
+          <CalendarPlus className="mr-2 h-4 w-4" /> {template.terminology.bookCtaLabel}
         </Button>
       </div>
 
@@ -199,7 +213,9 @@ export default function ProviderDetail() {
           )}
 
           <section>
-            <h2 className="font-display text-xl text-foreground">Services & rates</h2>
+            <h2 className="font-display text-xl text-foreground">
+              {template.terminology.servicePlural}
+            </h2>
             <div className="mt-4 space-y-3">
               {services.length === 0 && (
                 <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
@@ -246,7 +262,9 @@ export default function ProviderDetail() {
 
           {professionals.length > 0 && (
             <section>
-              <h2 className="font-display text-xl text-foreground">Our professionals</h2>
+              <h2 className="font-display text-xl text-foreground">
+                Our {template.terminology.teamPlural.toLowerCase()}
+              </h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {professionals.map((pro) => (
                   <div

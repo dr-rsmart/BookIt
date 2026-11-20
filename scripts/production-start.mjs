@@ -57,6 +57,7 @@ try {
   const { PrismaClient } = require('@prisma/client');
   const prisma = new PrismaClient();
   const userCount = await prisma.user.count();
+  const providerCount = await prisma.provider.count();
   const legacyBookingtrackCount = await prisma.user.count({
     where: { email: { contains: 'bookingtrack.com' } },
   });
@@ -66,11 +67,13 @@ try {
   await prisma.$disconnect();
 
   const foreignCount = legacyBookingtrackCount + legacyHerBeautyCount;
-  if (userCount === 0 || foreignCount > 0) {
+  if (userCount === 0 || foreignCount > 0 || providerCount < 15) {
     log(
       userCount === 0
         ? 'Empty database detected — seeding initial BookIt! accounts...'
-        : `Migrating legacy/foreign test accounts (${foreignCount} found) — seeding fresh BookIt! accounts...`,
+        : providerCount < 15
+          ? `Upgrading database to 13 category templates (${providerCount}/15 providers found) — seeding BookIt! accounts...`
+          : `Migrating legacy/foreign test accounts (${foreignCount} found) — seeding fresh BookIt! accounts...`,
     );
     execSync('node dist/seed.js', {
       cwd: SERVER_DIR,
@@ -80,7 +83,7 @@ try {
     });
     log('Database seed completed.');
   } else {
-    log(`Database already populated (${userCount} user accounts) — skipping initial seed.`);
+    log(`Database already populated (${userCount} user accounts, ${providerCount} providers) — skipping initial seed.`);
   }
 } catch (err) {
   log(`⚠️ Seed check warning: ${err.message}`);

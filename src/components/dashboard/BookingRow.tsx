@@ -11,20 +11,52 @@ import { toast } from 'sonner';
 import { bookingsApi, type BookingRecord } from '../../services/api';
 import { Badge, Button, ConfirmDialog } from '../ui';
 import {
+  cn,
   formatDateHuman,
   formatTime12,
   formatZAR,
   STATUS_BADGE_CLASSES,
+  formatBookingMetadataBadges,
+  resolveCategoryTemplate,
+  getBookingOperationalStage,
+  type CategoryTemplateSpec,
 } from '../../lib/utils';
 
 export default function BookingRow({
   booking,
+  template,
   onChange,
 }: {
   booking: BookingRecord;
+  template?: CategoryTemplateSpec;
   onChange: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const resolvedTemplate =
+    template || resolveCategoryTemplate(String(booking.metadata?.template_id || ''), null);
+  const metadataBadges = formatBookingMetadataBadges(booking.metadata);
+  const currentStage = getBookingOperationalStage(booking, resolvedTemplate);
+
+  const updateStage = async (stage: string) => {
+    setBusy(true);
+    try {
+      const isFinal = stage === resolvedTemplate.operationalStages[3];
+      await bookingsApi.update(booking.id, {
+        ...(isFinal ? { status: 'completed' } : {}),
+        metadata: {
+          ...(booking.metadata || {}),
+          template_id: resolvedTemplate.id,
+          stage,
+        },
+      });
+      toast.success(`Stage updated to "${stage}".`);
+      onChange();
+    } catch (err: any) {
+      toast.error(err.message || 'Could not update stage');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const updateStatus = async (status: BookingRecord['status']) => {
     setBusy(true);
@@ -82,6 +114,46 @@ export default function BookingRow({
         )}
         {booking.reminder_sent_at && <span className="text-primary/80">Reminder sent</span>}
       </div>
+
+      {metadataBadges.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {metadataBadges.map((b, idx) => (
+            <span
+              key={`${b.label}-${idx}`}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                b.highlight
+                  ? 'border-primary/30 bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/50 text-muted-foreground',
+              )}
+            >
+              {b.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {isActive && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">Stage:</span>
+          {resolvedTemplate.operationalStages.map((stage) => (
+            <button
+              key={stage}
+              type="button"
+              disabled={busy}
+              onClick={() => void updateStage(stage)}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-[11px] transition',
+                currentStage === stage
+                  ? 'border-primary bg-primary text-primary-foreground font-medium'
+                  : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground',
+              )}
+            >
+              {stage}
+            </button>
+          ))}
+        </div>
+      )}
 
       {booking.notes && (
         <p className="mt-3 rounded-xl bg-secondary/60 p-3 text-sm text-muted-foreground">

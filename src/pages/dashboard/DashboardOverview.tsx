@@ -13,22 +13,29 @@ import {
   Clock,
   CalendarCheck,
   Banknote,
+  Sparkles,
+  ArrowRight,
+  Plus,
+  MapPin,
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   providersApi,
   bookingsApi,
+  masterApi,
   type BookingRecord,
+  type ProviderRecord,
 } from '../../services/api';
 import { useMyProvider } from '../../hooks/useMyProvider';
 import { useAuth } from '../../context/AuthContext';
 import { useSSE } from '../../hooks/useSSE';
 import DashboardSubNav from '../../components/dashboard/DashboardSubNav';
 import BusinessForm from '../../components/dashboard/BusinessForm';
-import BookingRow from '../../components/dashboard/BookingRow';
+import { CategoryTemplatePickerModal } from '../../components/dashboard/CategoryTemplatePicker';
+import CategoryWorkspaceBoard from '../../components/dashboard/CategoryWorkspaceBoard';
 import { Button, Skeleton, Spinner } from '../../components/ui';
-import { getCategoryMeta, formatZAR } from '../../lib/utils';
+import { getCategoryMeta, resolveCategoryTemplate, formatZAR } from '../../lib/utils';
 
 function StatCard({
   label,
@@ -54,9 +61,15 @@ function StatCard({
 }
 
 export default function DashboardOverview() {
-  const { provider, setProvider, loading } = useMyProvider();
-  const { refresh: refreshAuth } = useAuth();
+  const { provider, setProvider, loading, reload: reloadMyProvider } = useMyProvider();
+  const { user, isMaster, refresh: refreshAuth } = useAuth();
   const navigate = useNavigate();
+
+  const isMasterOperator = isMaster || user?.originalRole === 'master';
+  const [browseProviders, setBrowseProviders] = useState<ProviderRecord[]>([]);
+  const [loadingBrowse, setLoadingBrowse] = useState(false);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const [stats, setStats] = useState<{
     todayCount: number;
@@ -85,8 +98,15 @@ export default function DashboardOverview() {
   useEffect(() => {
     if (provider) {
       void loadStats();
+    } else if (isMasterOperator) {
+      setLoadingBrowse(true);
+      providersApi
+        .list({ status: 'published', limit: 60 })
+        .then((res) => setBrowseProviders(res.items))
+        .catch(() => setBrowseProviders([]))
+        .finally(() => setLoadingBrowse(false));
     }
-  }, [provider, loadStats]);
+  }, [provider, isMasterOperator, loadStats]);
 
   useSSE(['booking:created', 'booking:updated', 'booking:reminder'], () => {
     void loadStats();
@@ -101,9 +121,129 @@ export default function DashboardOverview() {
   }
 
   if (!provider) {
+    if (isMasterOperator && !showCreateForm) {
+      return (
+        <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:space-y-8 sm:px-5 sm:py-10">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                For businesses · Operator Workspace Selector
+              </div>
+              <h1 className="mt-2 font-display text-2xl text-foreground sm:text-4xl">
+                Choose a business from Browse to manage
+              </h1>
+              <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                You are signed in as Platform Master ({user?.fullName}). Select any of the actual
+                published business profiles below to open and manage its live dashboard, services,
+                team, availability slots, and bookings.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setShowCreateForm(true)}
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> List a new business instead
+            </Button>
+          </div>
+
+          {loadingBrowse ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-52 rounded-3xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {browseProviders.map((p) => {
+                const tpl = resolveCategoryTemplate(p.category, p.template_id);
+                const TplIcon = tpl.Icon;
+                const isBusy = switchingId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    className="flex flex-col justify-between rounded-3xl border border-border bg-card p-5 transition hover:border-primary/40"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary">
+                          <TplIcon className="h-3.5 w-3.5" />
+                          {tpl.title}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3 text-primary/70" />
+                          {p.city || 'SA'}
+                        </span>
+                      </div>
+                      <h3 className="mt-3 font-display text-lg text-foreground">{p.name}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Owner: <span className="text-foreground">{p.primaryContactName || p.owner_email}</span>
+                      </p>
+                      {p.tagline && (
+                        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                          {p.tagline}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      className="mt-5 h-10 w-full rounded-full text-xs"
+                      disabled={switchingId !== null}
+                      onClick={async () => {
+                        setSwitchingId(p.id);
+                        try {
+                          const res = await masterApi.demoLogin({
+                            email: p.owner_email,
+                            providerId: p.id,
+                          });
+                          toast.success(res.message);
+                          await refreshAuth();
+                          await reloadMyProvider();
+                        } catch (err: any) {
+                          toast.error(err.message || 'Could not switch to business profile');
+                        } finally {
+                          setSwitchingId(null);
+                        }
+                      }}
+                    >
+                      {isBusy ? (
+                        <>
+                          <Spinner className="mr-2 h-3.5 w-3.5 border-primary-foreground" />
+                          Opening dashboard…
+                        </>
+                      ) : (
+                        <>
+                          Manage {p.name} <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-5 sm:py-12">
-        <p className="text-xs uppercase tracking-[0.3em] text-primary/80">For businesses</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-primary/80">For businesses</p>
+          {isMasterOperator && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => setShowCreateForm(false)}
+            >
+              Manage an existing Browse business
+            </Button>
+          )}
+        </div>
         <h1 className="mt-3 font-display text-2xl text-foreground sm:text-4xl">
           List your business
         </h1>
@@ -130,6 +270,8 @@ export default function DashboardOverview() {
   }
 
   const { label: categoryLabel } = getCategoryMeta(provider.category);
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
+  const TemplateIcon = template.Icon;
 
   return (
     <div>
@@ -137,18 +279,67 @@ export default function DashboardOverview() {
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-5 sm:py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-primary/80">
-              Provider dashboard
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.3em] text-primary/80">
+                Provider dashboard
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                <TemplateIcon className="h-3 w-3" />
+                {template.title}
+              </span>
+            </div>
             <h1 className="mt-2 font-display text-2xl text-foreground sm:mt-3 sm:text-3xl">
               {provider.name}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {categoryLabel}
-              {provider.city ? ` · ${provider.city}` : ''}
+              {provider.city ? ` · ${provider.city}` : ''} ·{' '}
+              <span className="text-foreground/80">
+                {template.terminologyPills.join(' · ')}
+              </span>
             </p>
           </div>
-          <div className="flex w-full gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            {isMasterOperator && (
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-full gap-1.5 sm:flex-none"
+                onClick={() => navigate('/demo')}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Switch business
+              </Button>
+            )}
+            <CategoryTemplatePickerModal
+              currentCategory={provider.category}
+              currentTemplateId={provider.template_id}
+              onSelectTemplate={async (nextTpl) => {
+                try {
+                  const nextCat = nextTpl.legacyCategories.includes(provider.category)
+                    ? provider.category
+                    : nextTpl.id;
+                  const updated = await providersApi.update(provider.id, {
+                    category: nextCat,
+                    template_id: nextTpl.id,
+                  });
+                  setProvider({ ...provider, ...updated });
+                  toast.success(`Switched workspace template to "${nextTpl.title}".`);
+                } catch (err: any) {
+                  toast.error(err.message || 'Could not update category template');
+                }
+              }}
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 rounded-full gap-1.5 sm:flex-none"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  Category template
+                </Button>
+              }
+            />
             <Button
               variant="outline"
               className="flex-1 rounded-full sm:flex-none"
@@ -167,43 +358,42 @@ export default function DashboardOverview() {
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
           <StatCard
-            label="Today"
+            label={template.kpiCards[0].label}
             value={stats ? stats.todayCount : '—'}
-            hint="appointments booked"
+            hint={template.kpiCards[0].hint}
             Icon={Calendar}
           />
           <StatCard
-            label="Upcoming"
+            label={template.kpiCards[1].label}
             value={stats ? stats.upcomingCount : '—'}
-            hint="still to come"
+            hint={template.kpiCards[1].hint}
             Icon={Clock}
           />
           <StatCard
-            label="Awaiting confirmation"
+            label={template.kpiCards[2].label}
             value={stats ? stats.pendingCount : '—'}
-            hint="needs your attention"
+            hint={template.kpiCards[2].hint}
             Icon={CalendarCheck}
           />
           <StatCard
-            label="Completed revenue"
+            label={template.kpiCards[3].label}
             value={stats ? formatZAR(stats.revenue) || 'R0' : '—'}
-            hint="from finished appointments"
+            hint={template.kpiCards[3].hint}
             Icon={Banknote}
           />
         </div>
 
-        <h2 className="mt-12 font-display text-xl text-foreground">Today’s schedule</h2>
-        <div className="mt-4 space-y-4">
-          {!stats && <Skeleton className="h-32 rounded-2xl" />}
-          {stats && todayBookings.length === 0 && (
-            <p className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-              Nothing booked for today. Open more slots in Availability, or share your public page.
-            </p>
-          )}
-          {todayBookings.map((b) => (
-            <BookingRow key={b.id} booking={b} onChange={() => void loadStats()} />
-          ))}
-        </div>
+        {!stats ? (
+          <div className="mt-10">
+            <Skeleton className="h-40 rounded-3xl" />
+          </div>
+        ) : (
+          <CategoryWorkspaceBoard
+            template={template}
+            bookings={todayBookings}
+            onChange={() => void loadStats()}
+          />
+        )}
       </div>
     </div>
   );

@@ -267,6 +267,10 @@ router.post('/', requireAuth, async (req, res) => {
           endTime,
           price,
           notes: String(body.notes || ''),
+          metadata:
+            body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
+              ? (body.metadata as Prisma.InputJsonValue)
+              : ({} as Prisma.InputJsonValue),
           status:
             body.status && ['pending', 'confirmed', 'completed', 'cancelled'].includes(body.status)
               ? body.status
@@ -373,6 +377,23 @@ async function handleUpdateBooking(req: Request, res: Response) {
         }
         if (body.notes !== undefined) {
           data.notes = String(body.notes);
+        }
+        if (
+          body.metadata !== undefined &&
+          body.metadata &&
+          typeof body.metadata === 'object' &&
+          !Array.isArray(body.metadata)
+        ) {
+          const prevMeta =
+            existing.metadata &&
+            typeof existing.metadata === 'object' &&
+            !Array.isArray(existing.metadata)
+              ? (existing.metadata as Record<string, unknown>)
+              : {};
+          data.metadata = {
+            ...prevMeta,
+            ...(body.metadata as Record<string, unknown>),
+          } as Prisma.InputJsonValue;
         }
       }
 

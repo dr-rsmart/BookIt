@@ -10,7 +10,12 @@ import { Prisma } from '@prisma/client';
 import prisma from '../prisma.js';
 import { logger } from '../logger.js';
 import { requireAuth, optionalAuth, invalidateLiveRoleCache } from '../middleware/auth.js';
-import { serializeProvider, DEFAULT_WORKING_HOURS } from '../serializers.js';
+import {
+  serializeProvider,
+  DEFAULT_WORKING_HOURS,
+  inferTemplateId,
+  expandCategoryFilterValues,
+} from '../serializers.js';
 import { logAudit, getClientIp, computeChanges } from '../audit.js';
 import { broadcastEvent } from '../sse.js';
 import { parsePagination, setPageHeaders } from '../pagination.js';
@@ -45,7 +50,16 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 
     if (category) {
-      where.category = category;
+      const matchingCats = expandCategoryFilterValues(category);
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        {
+          OR: [
+            { category: { in: matchingCats } },
+            { templateId: { in: matchingCats } },
+          ],
+        },
+      ];
     }
 
     if (ownerEmail) {
@@ -102,6 +116,15 @@ router.get('/mine', requireAuth, async (req, res) => {
       provider = await prisma.provider.findUnique({ where: { id: authUser.providerId } });
     }
     if (!provider) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        select: { providerId: true, role: true },
+      });
+      if (dbUser?.providerId) {
+        provider = await prisma.provider.findUnique({ where: { id: dbUser.providerId } });
+      }
+    }
+    if (!provider) {
       provider = await prisma.provider.findFirst({
         where: {
           OR: [
@@ -111,6 +134,22 @@ router.get('/mine', requireAuth, async (req, res) => {
         },
         orderBy: { createdAt: 'asc' },
       });
+      if (provider && authUser.role !== 'master') {
+        await prisma.user.update({
+          where: { id: authUser.id },
+          data: { providerId: provider.id },
+        });
+        invalidateLiveRoleCache(authUser.id);
+      }
+    }
+    if (!provider) {
+      const staffMember = await prisma.professional.findFirst({
+        where: { email: { equals: authUser.email, mode: 'insensitive' } },
+        select: { providerId: true },
+      });
+      if (staffMember?.providerId) {
+        provider = await prisma.provider.findUnique({ where: { id: staffMember.providerId } });
+      }
     }
 
     return res.json({
@@ -156,10 +195,13 @@ router.post('/', requireAuth, async (req, res) => {
         : DEFAULT_WORKING_HOURS;
 
     const created = await prisma.$transaction(async (tx) => {
+      const cat = String(body.category || 'Salon');
+      const tpl = inferTemplateId(cat, body.template_id ?? body.templateId);
       const p = await tx.provider.create({
         data: {
           name,
-          category: String(body.category || 'Salon'),
+          category: cat,
+          templateId: tpl,
           tagline: String(body.tagline || ''),
           about: String(body.about || ''),
           phone: String(body.phone || ''),
@@ -238,7 +280,18 @@ async function handleUpdateProvider(req: Request, res: Response) {
     const data: Prisma.ProviderUpdateInput = {};
 
     if (body.name !== undefined) data.name = String(body.name).trim();
-    if (body.category !== undefined) data.category = String(body.category);
+    if (body.category !== undefined) {
+      data.category = String(body.category);
+      if (body.template_id === undefined && body.templateId === undefined) {
+        data.templateId = inferTemplateId(String(body.category), null);
+      }
+    }
+    if (body.template_id !== undefined || body.templateId !== undefined) {
+      data.templateId = inferTemplateId(
+        body.category !== undefined ? String(body.category) : existing.category,
+        String(body.template_id ?? body.templateId ?? ''),
+      );
+    }
     if (body.tagline !== undefined) data.tagline = String(body.tagline);
     if (body.about !== undefined) data.about = String(body.about);
     if (body.phone !== undefined) data.phone = String(body.phone);

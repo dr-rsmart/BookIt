@@ -150,20 +150,20 @@ export default function AppLayout() {
               </NavLink>
             )}
             {isMaster && (
-              <>
-                <NavLink to="/master" className={navLinkClass}>
-                  <span className="inline-flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Master Console
-                  </span>
-                </NavLink>
-                <NavLink to="/demo" className={navLinkClass}>
-                  <span className="inline-flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Simulator
-                  </span>
-                </NavLink>
-              </>
+              <NavLink to="/master" className={navLinkClass}>
+                <span className="inline-flex items-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Master Console
+                </span>
+              </NavLink>
+            )}
+            {(isMaster || user?.originalRole === 'master') && (
+              <NavLink to="/demo" className={navLinkClass}>
+                <span className="inline-flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Simulator
+                </span>
+              </NavLink>
             )}
           </nav>
 
@@ -264,14 +264,14 @@ export default function AppLayout() {
             </NavLink>
           )}
           {isMaster && (
-            <>
-              <NavLink to="/master" className={navLinkClass}>
-                Master
-              </NavLink>
-              <NavLink to="/demo" className={navLinkClass}>
-                Simulator
-              </NavLink>
-            </>
+            <NavLink to="/master" className={navLinkClass}>
+              Master
+            </NavLink>
+          )}
+          {(isMaster || user?.originalRole === 'master') && (
+            <NavLink to="/demo" className={navLinkClass}>
+              Simulator
+            </NavLink>
           )}
           {!isAuthenticated && (
             <NavLink to="/register" className={navLinkClass}>

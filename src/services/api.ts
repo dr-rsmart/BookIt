@@ -460,20 +460,44 @@ export const masterApi = {
         body: JSON.stringify({ isActive }),
       },
     ),
-  impersonate: (providerId: string) =>
-    request<{ success: boolean; message: string }>(
-      `/master/impersonate/${encodeURIComponent(providerId)}`,
-      { method: 'POST' },
-    ),
-  demoLogin: (email: string) =>
-    request<{ success: boolean; message: string }>('/master/demo-login', {
+  impersonate: async (providerId: string) => {
+    const res = await request<{
+      success: boolean;
+      token?: string;
+      providerId?: string;
+      message: string;
+    }>(`/master/impersonate/${encodeURIComponent(providerId)}`, { method: 'POST' });
+    if (res.token) setAuthBearerToken(res.token);
+    return res;
+  },
+  demoLogin: async (
+    emailOrPayload: string | { email?: string; providerId?: string },
+  ) => {
+    const payload =
+      typeof emailOrPayload === 'string' ? { email: emailOrPayload } : emailOrPayload;
+    const res = await request<{
+      success: boolean;
+      token?: string;
+      providerId?: string | null;
+      message: string;
+    }>('/master/demo-login', {
       method: 'POST',
-      body: JSON.stringify({ email }),
-    }),
-  stopImpersonation: () =>
-    request<{ success: boolean; message: string }>('/master/stop-impersonation', {
+      body: JSON.stringify(payload),
+    });
+    if (res.token) setAuthBearerToken(res.token);
+    return res;
+  },
+  stopImpersonation: async () => {
+    const res = await request<{
+      success: boolean;
+      token?: string;
+      message: string;
+    }>('/master/stop-impersonation', {
       method: 'POST',
-    }),
+    });
+    if (res.token) setAuthBearerToken(res.token);
+    return res;
+  },
 };
 
 // ── File Upload Helper ──

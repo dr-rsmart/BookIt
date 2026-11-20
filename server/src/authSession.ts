@@ -19,9 +19,13 @@ export function getAuthToken(req: {
   headers: { authorization?: string | string[] };
   cookies?: Record<string, string | undefined>;
 }): string | undefined {
+  const cookieToken = req.cookies?.[AUTH_COOKIE_NAME] || req.cookies?.['tt_token'];
+  if (cookieToken) {
+    return cookieToken;
+  }
   const authorization = req.headers.authorization;
   if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
     return authorization.slice(7);
   }
-  return req.cookies?.[AUTH_COOKIE_NAME] || req.cookies?.['tt_token'];
+  return undefined;
 }

@@ -10,11 +10,17 @@ import { Link } from 'react-router-dom';
 import { Search, MapPin, ArrowRight, X } from 'lucide-react';
 import { providersApi, type ProviderRecord } from '../services/api';
 import { Input, Skeleton, BookItIcon } from '../components/ui';
-import { CATEGORIES, getCategoryMeta, cn } from '../lib/utils';
+import {
+  BROWSE_CATEGORIES,
+  getCategoryMeta,
+  resolveCategoryTemplate,
+  cn,
+} from '../lib/utils';
 import { useSSE } from '../hooks/useSSE';
 
 function ProviderCard({ provider }: { provider: ProviderRecord }) {
   const { Icon, label } = getCategoryMeta(provider.category);
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
   const locationText = [provider.city, provider.country].filter(Boolean).join(', ');
 
   return (
@@ -46,6 +52,16 @@ function ProviderCard({ provider }: { provider: ProviderRecord }) {
         {provider.tagline && (
           <p className="line-clamp-2 text-sm text-muted-foreground">{provider.tagline}</p>
         )}
+        <div className="mt-1 flex flex-wrap gap-1">
+          {template.featureChips.map((chip) => (
+            <span
+              key={chip}
+              className="rounded-full border border-border/80 bg-secondary/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
         <div className="mt-auto flex items-center justify-between gap-3 pt-2">
           <p className="flex min-w-0 items-center gap-1.5 truncate text-sm text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/70" />
@@ -146,7 +162,7 @@ export default function Browse() {
             >
               Everything
             </button>
-            {CATEGORIES.map(({ value, label, Icon }) => (
+            {BROWSE_CATEGORIES.map(({ value, label, Icon }) => (
               <button
                 key={value}
                 type="button"
@@ -170,7 +186,7 @@ export default function Browse() {
         <div className="flex items-end justify-between gap-4">
           <h2 className="font-display text-xl text-foreground sm:text-2xl">
             {category
-              ? CATEGORIES.find((c) => c.value === category)?.label
+              ? BROWSE_CATEGORIES.find((c) => c.value === category)?.label || category
               : 'Businesses taking bookings'}
           </h2>
           {!loading && (

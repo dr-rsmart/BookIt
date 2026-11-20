@@ -32,9 +32,38 @@ All seeded accounts use password: **`Password123`**
 | `ayesha@bookit.com` | `ayesha@timetrack.com` | `manager` | `Password123` | Ayesha Pillay — **Cape Auto Precision Mechanics** (Mechanic, Cape Town) |
 | `pieter@bookit.com` | `pieter@timetrack.com` | `admin` | `Password123` | Pieter van der Merwe — **Waterfront Dental Studio** (Dentist, Cape Town) |
 | `naledi@bookit.com` | `naledi@timetrack.com` | `admin` | `Password123` | Naledi Khumalo — **Fynbos Botanical Spa & Wellness** (Spa & Wellness, Stellenbosch) |
-| `riaan@bookit.com` | `riaan@timetrack.com` | `admin` | `Password123` | Riaan Botha — **Highveld Performance Fitness** (Fitness, Pretoria) |
+| `riaan@bookit.com` | `riaan@timetrack.com` | `admin` | `Password123` | Riaan Botha — **Highveld Performance Fitness** (Fitness & Classes, Pretoria) |
+| `marco@bookit.com` | `marco@timetrack.com` | `admin` | `Password123` | Marco Ferreira — **Southside Padel & Sports Club** (Sport Facilities, Cape Town) |
+| `priya@bookit.com` | `priya@timetrack.com` | `admin` | `Password123` | Priya Govender — **Cedar Academic Learning Centre** (Tuition, Umhlanga) |
+| `luca@bookit.com` | `luca@timetrack.com` | `admin` | `Password123` | Luca Rossi — **Olive & Ember Courtyard Bistro** (Restaurants & Cafes, Cape Town) |
+| `claire@bookit.com` | `claire@timetrack.com` | `admin` | `Password123` | Claire van Zyl — **Poppy & Plate Bespoke Events** (Catering & Events, Parkhurst) |
+| `kabelo@bookit.com` | `kabelo@timetrack.com` | `admin` | `Password123` | Kabelo Molefe — **The Courtyard Heritage Venue** (Venues & Spaces, Melrose) |
+| `hendrik@bookit.com` | `hendrik@timetrack.com` | `admin` | `Password123` | Hendrik Coetzee — **Oakline Plumbing & Electrical** (Home & Trade Services, Cape Town) |
+| `taryn@bookit.com` | `taryn@timetrack.com` | `admin` | `Password123` | Taryn Jenkins — **Paw & Polish Pet Grooming Studio** (Pet Services, Bryanston) |
+| `sibusiso@bookit.com` | `sibusiso@timetrack.com` | `admin` | `Password123` | Sibusiso Mabaso — **Frame House Creative Studio** (Photography & Creative Services, Woodstock) |
+| `nadia@bookit.com` | `nadia@timetrack.com` | `admin` | `Password123` | Adv. Nadia Abrahams — **Cedar Legal & Financial Advisory** (Professional Consultations, Sandton) |
 | `sipho@bookit.com` | `sipho@timetrack.com` | `customer` | `Password123` | Sipho Ndlovu — Customer with upcoming & completed appointments |
 | `lerato@bookit.com` | `lerato@timetrack.com` | `customer` | `Password123` | Lerato Dlamini — Customer with pending & completed appointments |
+
+---
+
+## 13 Industry Category Templates
+
+Every business in BookIt! maps to one of **13 industry category templates** (`src/lib/categoryTemplates.ts`), adapting domain terminology (`Team · Offering · Resource · Customer · Booking`), 4-step customer booking intake & ZAR add-ons (`src/components/booking/CategoryBookingIntake.tsx`), and the provider operational workspace board (`src/components/dashboard/CategoryWorkspaceBoard.tsx`):
+
+1. **Hair, Beauty & Wellness** (`Salon`, `Spa & Wellness`) — *Stylists · Treatment · Salon chair · Client · Appointment*
+2. **Healthcare** (`Doctor`, `Dentist`) — *Practitioners · Consultation · Consulting room · Patient · Appointment*
+3. **Fitness & Classes** (`Fitness`) — *Instructors · Class / session · Studio · Member · Spot*
+4. **Sport Facilities** — *Coaches / staff · Court / lane · Court · Player · Slot*
+5. **Tuition** — *Tutors · Lesson · Room / online · Student · Lesson*
+6. **Restaurants & Cafes** — *Hosts / sections · Sitting · Table · Guest · Reservation*
+7. **Catering & Events** — *Coordinators · Package · Event date · Client · Event booking*
+8. **Venues & Spaces** — *Coordinators · Space / package · Hall / room · Hirer · Hire booking*
+9. **Home & Trade Services** — *Technicians · Call-out / job · Service area · Customer · Call-out*
+10. **Automotive** (`Mechanic`) — *Technicians · Service / repair · Workshop bay · Vehicle owner · Workshop booking*
+11. **Pet Services** — *Groomers / carers · Groom / stay · Kennel / table · Pet owner · Booking*
+12. **Photography & Creative Services** — *Photographers · Shoot package · Studio / location · Client · Shoot*
+13. **Professional Consultations** (`Other`) — *Advisors · Consultation · Meeting room / call · Client · Consultation*
 
 ---
 

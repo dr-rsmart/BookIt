@@ -29,6 +29,8 @@ import {
   minutesToTime,
   formatDateHuman,
   formatTime12,
+  resolveCategoryTemplate,
+  type CategoryTemplateSpec,
 } from '../../lib/utils';
 
 const SLOT_LENGTHS = [15, 30, 45, 60, 90, 120];
@@ -37,11 +39,13 @@ function SlotGenerator({
   providerId,
   team,
   services,
+  template,
   onCreated,
 }: {
   providerId: string;
   team: ProfessionalRecord[];
   services: ServiceRecord[];
+  template: CategoryTemplateSpec;
   onCreated: () => void;
 }) {
   const [professionalId, setProfessionalId] = useState('');
@@ -65,19 +69,20 @@ function SlotGenerator({
     <div className="rounded-3xl border border-border bg-card p-5 sm:p-6">
       <h2 className="font-display text-lg text-foreground">Open up time slots</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Choose a professional and a time range — we’ll split it into bookable slots.
+        Choose a {template.terminology.teamSingular.toLowerCase()} and a time range — we’ll split it
+        into bookable slots.
       </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-          <Label htmlFor="slot-pro">Professional</Label>
+          <Label htmlFor="slot-pro">{template.terminology.teamSingular}</Label>
           <Select
             id="slot-pro"
             value={professionalId}
             onChange={(e) => setProfessionalId(e.target.value)}
             className="mt-2"
           >
-            <option value="">Choose a professional</option>
+            <option value="">Choose a {template.terminology.teamSingular.toLowerCase()}</option>
             {team.map((pro) => (
               <option key={pro.id} value={pro.id}>
                 {pro.name}
@@ -87,7 +92,7 @@ function SlotGenerator({
         </div>
 
         <div>
-          <Label htmlFor="slot-service">Service</Label>
+          <Label htmlFor="slot-service">{template.terminology.serviceSingular}</Label>
           <Select
             id="slot-service"
             value={serviceId}
@@ -101,7 +106,7 @@ function SlotGenerator({
             }}
             className="mt-2"
           >
-            <option value="any">Any service</option>
+            <option value="any">Any {template.terminology.serviceSingular.toLowerCase()}</option>
             {services.map((svc) => (
               <option key={svc.id} value={svc.id}>
                 {svc.name}
@@ -313,6 +318,7 @@ export default function DashboardAvailability() {
 
   const refresh = () => void loadAll(provider.id);
   const proName = (proId: string) => team.find((p) => p.id === proId)?.name || 'Unassigned';
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
 
   return (
     <div>
@@ -321,7 +327,8 @@ export default function DashboardAvailability() {
         <div>
           <h1 className="font-display text-2xl text-foreground sm:text-3xl">Availability</h1>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Assign your professionals to open slots — customers can only book what’s open here.
+            Assign your {template.terminology.teamPlural.toLowerCase()} to open slots —{' '}
+            {template.terminology.customerPlural.toLowerCase()} can only book what’s open here.
           </p>
         </div>
 
@@ -329,6 +336,7 @@ export default function DashboardAvailability() {
           providerId={provider.id}
           team={team}
           services={services}
+          template={template}
           onCreated={refresh}
         />
 

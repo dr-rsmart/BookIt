@@ -51,6 +51,7 @@ export const workingHourItemSchema = z.object({
 export const providerSchema = z.object({
   name: z.string().min(1, 'Business name is required'),
   category: z.string().optional().default('Salon'),
+  template_id: z.string().optional(),
   tagline: z.string().optional().default(''),
   about: z.string().optional().default(''),
   phone: z.string().optional().default(''),
@@ -114,6 +115,7 @@ export const bookingCreateSchema = z.object({
   end_time: z.string().regex(/^\d{2}:\d{2}$/),
   price: z.union([z.number(), z.string(), z.null()]).optional(),
   notes: z.string().optional().default(''),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']).optional().default('confirmed'),
 });
 

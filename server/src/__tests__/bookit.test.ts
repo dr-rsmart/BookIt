@@ -17,6 +17,9 @@ import {
 } from '../overlap.js';
 import {
   DEFAULT_WORKING_HOURS,
+  ALL_CATEGORY_TEMPLATES,
+  inferTemplateId,
+  expandCategoryFilterValues,
   serializeProvider,
   serializeService,
   serializeBooking,
@@ -93,8 +96,14 @@ describe('BookIt! Core Infrastructure & Domain', () => {
     });
 
     expect(p.id).toBe('prov_1');
+    expect(p.template_id).toBe('Healthcare');
     expect(p.working_hours).toHaveLength(7);
     expect(p.working_hours).toEqual(DEFAULT_WORKING_HOURS);
+    expect(ALL_CATEGORY_TEMPLATES).toHaveLength(13);
+    expect(inferTemplateId('Mechanic', null)).toBe('Automotive');
+    expect(expandCategoryFilterValues('Healthcare')).toEqual(
+      expect.arrayContaining(['Healthcare', 'Doctor', 'Dentist']),
+    );
 
     const s = serializeService({
       id: 'svc_1',

@@ -27,7 +27,7 @@ import {
   ConfirmDialog,
   Spinner,
 } from '../../components/ui';
-import { cn, formatDuration, formatZAR } from '../../lib/utils';
+import { cn, formatDuration, formatZAR, resolveCategoryTemplate } from '../../lib/utils';
 
 function ServiceModal({
   providerId,
@@ -251,6 +251,7 @@ export default function DashboardServices() {
   if (!provider) return <Navigate to="/dashboard" replace />;
 
   const refresh = () => void loadAll(provider.id);
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
 
   return (
     <div>
@@ -258,9 +259,12 @@ export default function DashboardServices() {
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-5 sm:py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl text-foreground sm:text-3xl">Services & rates</h1>
+            <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+              {template.terminology.servicePlural}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              What customers can book, how long it takes, and who can deliver it.
+              What {template.terminology.customerPlural.toLowerCase()} can book, how long it takes,
+              and which {template.terminology.teamPlural.toLowerCase()} can deliver it.
             </p>
           </div>
           <ServiceModal
@@ -269,7 +273,8 @@ export default function DashboardServices() {
             onSaved={refresh}
             trigger={
               <Button className="rounded-full">
-                <Plus className="mr-2 h-4 w-4" /> Add service
+                <Plus className="mr-2 h-4 w-4" /> Add{' '}
+                {template.terminology.serviceSingular.toLowerCase()}
               </Button>
             }
           />

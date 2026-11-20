@@ -25,6 +25,7 @@ export interface ProviderRecord {
   id: string;
   name: string;
   category: string;
+  template_id: string;
   tagline: string;
   about: string;
   phone: string;
@@ -46,6 +47,70 @@ export interface ProviderRecord {
   primaryContactName?: string;
   created_date: string;
   updated_date: string;
+}
+
+const LEGACY_TO_TEMPLATE_MAP: Record<string, string> = {
+  Doctor: 'Healthcare',
+  Dentist: 'Healthcare',
+  Salon: 'Hair, Beauty & Wellness',
+  'Spa & Wellness': 'Hair, Beauty & Wellness',
+  Mechanic: 'Automotive',
+  Fitness: 'Fitness & Classes',
+  Other: 'Professional Consultations',
+};
+
+export const ALL_CATEGORY_TEMPLATES = [
+  'Hair, Beauty & Wellness',
+  'Healthcare',
+  'Fitness & Classes',
+  'Sport Facilities',
+  'Tuition',
+  'Restaurants & Cafes',
+  'Catering & Events',
+  'Venues & Spaces',
+  'Home & Trade Services',
+  'Automotive',
+  'Pet Services',
+  'Photography & Creative Services',
+  'Professional Consultations',
+] as const;
+
+export function inferTemplateId(category?: string | null, explicitTemplateId?: string | null): string {
+  if (explicitTemplateId && explicitTemplateId.trim()) {
+    const match = ALL_CATEGORY_TEMPLATES.find(
+      (t) => t.toLowerCase() === explicitTemplateId.trim().toLowerCase(),
+    );
+    if (match) return match;
+  }
+  if (category && category.trim()) {
+    const direct = ALL_CATEGORY_TEMPLATES.find(
+      (t) => t.toLowerCase() === category.trim().toLowerCase(),
+    );
+    if (direct) return direct;
+    if (LEGACY_TO_TEMPLATE_MAP[category.trim()]) {
+      return LEGACY_TO_TEMPLATE_MAP[category.trim()];
+    }
+  }
+  return 'Professional Consultations';
+}
+
+export function expandCategoryFilterValues(categoryFilter: string): string[] {
+  const trimmed = categoryFilter.trim();
+  const values = new Set<string>([trimmed]);
+  const templateMatch = ALL_CATEGORY_TEMPLATES.find(
+    (t) => t.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (templateMatch) {
+    values.add(templateMatch);
+    for (const [legacy, tpl] of Object.entries(LEGACY_TO_TEMPLATE_MAP)) {
+      if (tpl === templateMatch && legacy !== 'Other') {
+        values.add(legacy);
+      }
+    }
+  } else if (LEGACY_TO_TEMPLATE_MAP[trimmed] && trimmed !== 'Other') {
+    values.add(LEGACY_TO_TEMPLATE_MAP[trimmed]);
+  }
+  return Array.from(values);
 }
 
 export interface ServiceRecord {
@@ -110,6 +175,7 @@ export interface BookingRecord {
   end_time: string;
   price: number | null;
   notes: string;
+  metadata: Record<string, unknown>;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   reminder_sent_at: string | null;
   created_date: string;
@@ -126,7 +192,9 @@ export const DEFAULT_WORKING_HOURS: WorkingHoursDay[] = [
   { day: 'Sunday', open: '09:00', close: '17:00', closed: true },
 ];
 
-export function serializeProvider(p: Provider): ProviderRecord {
+export function serializeProvider(
+  p: Omit<Provider, 'templateId'> & { templateId?: string | null },
+): ProviderRecord {
   const rawHours = Array.isArray(p.workingHours)
     ? (p.workingHours as unknown as WorkingHoursDay[])
     : DEFAULT_WORKING_HOURS;
@@ -134,6 +202,7 @@ export function serializeProvider(p: Provider): ProviderRecord {
     id: p.id,
     name: p.name,
     category: p.category,
+    template_id: inferTemplateId(p.category, p.templateId),
     tagline: p.tagline || '',
     about: p.about || '',
     phone: p.phone || '',
@@ -211,7 +280,13 @@ export function serializeSlot(s: Slot): SlotRecord {
   };
 }
 
-export function serializeBooking(b: Booking): BookingRecord {
+export function serializeBooking(
+  b: Omit<Booking, 'metadata'> & { metadata?: unknown },
+): BookingRecord {
+  const rawMeta =
+    b.metadata && typeof b.metadata === 'object' && !Array.isArray(b.metadata)
+      ? (b.metadata as Record<string, unknown>)
+      : {};
   return {
     id: b.id,
     provider_id: b.providerId,
@@ -230,6 +305,7 @@ export function serializeBooking(b: Booking): BookingRecord {
     end_time: b.endTime,
     price: b.price != null ? Number(b.price) : null,
     notes: b.notes || '',
+    metadata: rawMeta,
     status: b.status,
     reminder_sent_at: b.reminderSentAt ? b.reminderSentAt.toISOString() : null,
     created_date: b.createdAt.toISOString(),

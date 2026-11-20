@@ -29,7 +29,7 @@ import {
   ImageUpload,
   Spinner,
 } from '../../components/ui';
-import { cn } from '../../lib/utils';
+import { cn, resolveCategoryTemplate } from '../../lib/utils';
 
 function ProfessionalModal({
   providerId,
@@ -310,6 +310,7 @@ export default function DashboardTeam() {
   if (!provider) return <Navigate to="/dashboard" replace />;
 
   const refresh = () => void loadAll(provider.id);
+  const template = resolveCategoryTemplate(provider.category, provider.template_id);
 
   return (
     <div>
@@ -317,9 +318,12 @@ export default function DashboardTeam() {
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-5 sm:py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl text-foreground sm:text-3xl">Your team</h1>
+            <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+              {template.terminology.teamPlural}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              Customers choose who they want to see — add everyone who takes appointments.
+              {template.terminology.customerPlural} choose who they want to book — add everyone who
+              takes {template.terminology.bookingPlural.toLowerCase()}.
             </p>
           </div>
           <ProfessionalModal
@@ -328,7 +332,8 @@ export default function DashboardTeam() {
             onSaved={refresh}
             trigger={
               <Button className="rounded-full">
-                <Plus className="mr-2 h-4 w-4" /> Add professional
+                <Plus className="mr-2 h-4 w-4" /> Add{' '}
+                {template.terminology.teamSingular.toLowerCase()}
               </Button>
             }
           />
