@@ -1,4 +1,36 @@
-import { withAppBuildGradle, withGradleProperties } from 'expo/config-plugins';
+import {
+  withAppBuildGradle,
+  withGradleProperties,
+  withPodfile,
+} from 'expo/config-plugins';
+
+/**
+ * Ensures every CocoaPods target (including resource bundle targets like
+ * RNCAsyncStorage_resources) has IPHONEOS_DEPLOYMENT_TARGET >= 15.1 so that
+ * Xcode 27.1 (iPhoneOS27.1.sdk on EAS `image: "latest"`) compiles without
+ * deployment-target range errors and satisfies Apple's ITMS-90725 iOS 27 SDK rule.
+ */
+function withIosDeploymentTargetFloor(config) {
+  return withPodfile(config, (modConfig) => {
+    let contents = modConfig.modResults.contents;
+    const snippet = `
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do | build_config |
+        if build_config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.1
+          build_config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        end
+      end
+    end`;
+    if (contents.includes('react_native_post_install(') && !contents.includes("build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'")) {
+      contents = contents.replace(
+        /post_install do \|installer\|/,
+        `post_install do |installer|${snippet}`,
+      );
+      modConfig.modResults.contents = contents;
+    }
+    return modConfig;
+  });
+}
 
 /**
  * Enables full R8 bytecode optimization (`proguard-android-optimize.txt`) and
@@ -35,4 +67,5 @@ function withAndroidR8Optimization(config) {
   return config;
 }
 
-export default ({ config }) => withAndroidR8Optimization({ ...config });
+export default ({ config }) =>
+  withIosDeploymentTargetFloor(withAndroidR8Optimization({ ...config }));
