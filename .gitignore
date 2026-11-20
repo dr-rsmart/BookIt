@@ -22,3 +22,13 @@ Thumbs.db
 .railway/
 *.tsbuildinfo
 .vite/
+.expo/
+.playwright-google-profile/
+asc-api-key.json
+asc-api-key.p8
+google-services.json
+google-service-account.json
+*.aab
+*.ipa
+play-console-*.png
+

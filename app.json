@@ -2,28 +2,24 @@
   "expo": {
     "name": "BookIt!",
     "slug": "bookit-sa",
+    "owner": "smart-patel-tech-solutions",
     "version": "1.0.0",
-    "scheme": "bookit",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./store-assets/graphics/app-icon-1024x1024.png",
+    "scheme": "bookit",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./store-assets/graphics/app-icon-1024x1024.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FEECE8"
-    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "za.co.smartpatel.bookit",
       "buildNumber": "1",
-      "config": {
-        "usesNonExemptEncryption": false
-      },
+      "icon": "./store-assets/graphics/app-icon-1024x1024.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "BookIt! accesses your photo library only when you choose to upload a cover image for your business profile or an avatar for a team member.",
         "NSCameraUsageDescription": "BookIt! uses the camera only if you choose to take a profile photo for your business or practitioner listing.",
+        "NSPhotoLibraryUsageDescription": "BookIt! accesses your photo library only when you choose to upload a cover image for your business profile or an avatar for a team member.",
         "NSCalendarsUsageDescription": "BookIt! adds your confirmed appointments and reminders to your calendar when requested.",
         "NSCalendarsFullAccessUsageDescription": "BookIt! adds your confirmed appointments and reminders to your calendar when requested."
       },
@@ -75,19 +71,27 @@
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
-            "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
-            "NSPrivacyAccessedAPITypeReasons": ["E174.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
           }
         ]
       }
@@ -111,31 +115,41 @@
     },
     "plugins": [
       [
+        "expo-splash-screen",
+        {
+          "image": "./store-assets/graphics/app-icon-1024x1024.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FEECE8"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
             "compileSdkVersion": 36,
             "targetSdkVersion": 36,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true,
+            "extraProguardRules": "-keep class expo.modules.** { *; }\n-keep interface expo.modules.** { *; }\n-keep class org.unimodules.** { *; }\n-keep interface org.unimodules.** { *; }\n-keep @expo.modules.core.interfaces.DoNotStrip class * { *; }\n-keepclassmembers class * { @expo.modules.core.interfaces.DoNotStrip *; }\n-keep public class expo.modules.ExpoModulesPackageList { *; }\n-keep class com.facebook.imagepipeline.** { *; }\n-keep interface com.facebook.imagepipeline.** { *; }\n-keep class com.facebook.imageutils.** { *; }\n-keep interface com.facebook.imageutils.** { *; }\n-keep class kotlin.reflect.jvm.internal.impl.serialization.deserialization.builtins.** { *; }"
           },
           "ios": {
             "deploymentTarget": "15.1"
           }
         }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "BookIt! uses the system photo picker so you can upload a business cover photo or practitioner avatar."
-        }
       ]
     ],
     "extra": {
+      "eas": {
+        "projectId": "3c2b9e9f-1a2e-4de6-a239-91ad855d920d"
+      },
       "apiUrl": "https://bookit-production-236d981c.up.railway.app",
       "privacyPolicyUrl": "https://bookit-production-236d981c.up.railway.app/privacy",
       "termsOfServiceUrl": "https://bookit-production-236d981c.up.railway.app/terms",
-      "accountDeletionUrl": "https://bookit-production-236d981c.up.railway.app/privacy#delete-account",
-      "supportUrl": "https://bookit-production-236d981c.up.railway.app/support"
+      "supportUrl": "https://bookit-production-236d981c.up.railway.app/support",
+      "accountDeletionUrl": "https://bookit-production-236d981c.up.railway.app/privacy#delete-account"
     }
   }
 }

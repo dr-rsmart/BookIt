@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.0.0",
+    "version": ">= 21.0.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -13,23 +13,23 @@
     },
     "preview": {
       "distribution": "internal",
-      "ios": {
-        "image": "latest"
-      },
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bookit-production-236d981c.up.railway.app"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "ios": {
-        "image": "latest"
-      },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "autoIncrement": true
+      },
+      "ios": {
+        "autoIncrement": true
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bookit-production-236d981c.up.railway.app"
@@ -39,11 +39,15 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "BOOKIT_ASC_APP_ID"
+        "appleId": "ricardovsmart@gmail.com",
+        "ascAppId": "BOOKIT_ASC_APP_ID",
+        "ascApiKeyPath": "./asc-api-key.p8",
+        "ascApiKeyIssuerId": "910ea587-6238-4237-892d-8b8adf531d71",
+        "ascApiKeyId": "T7F5PP484B"
       },
       "android": {
-        "track": "internal",
-        "releaseStatus": "draft"
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
       }
     }
   }
