@@ -397,7 +397,7 @@ async function captureProfile(browser, dev) {
     console.log('  [15/15] 15_Platform_Simulator.png');
     await page.goto('/demo');
     await page.waitForSelector('h1', { timeout: 10_000 });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
     await page.screenshot({ path: path.join(targetDir, '15_Platform_Simulator.png') });
 
     console.log(`  ✨ Captured all 15 screens for ${dev.label}!`);
