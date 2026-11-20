@@ -28,6 +28,7 @@
     "screenshots:ios:upload": "node scripts/upload-ios-screenshots.mjs",
     "screenshots:store": "node scripts/capture-store-screenshots.mjs",
     "submit:ios": "node scripts/submit-ios.mjs",
+    "update:ios": "node scripts/update-ios-review-build.mjs",
     "setup": "npm install && cd server && npm install && npm run db:setup",
     "seed": "cd server && npm run seed",
     "stress:seed": "node stress/seed-stress-data.mjs",

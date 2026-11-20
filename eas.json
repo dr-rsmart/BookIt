@@ -17,7 +17,8 @@
         "buildType": "apk"
       },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "latest"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bookit-production-236d981c.up.railway.app"
@@ -29,7 +30,8 @@
         "autoIncrement": true
       },
       "ios": {
-        "autoIncrement": true
+        "autoIncrement": true,
+        "image": "latest"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bookit-production-236d981c.up.railway.app"
